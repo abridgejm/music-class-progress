@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Music Class Progress</title>
+  <meta name="description" content="A teacher's weekly tracker for attendance, lessons, practice, and monthly fees.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <h1>🎵 Music Class Progress</h1>
+      <div class="header-actions no-print">
+        <button type="button" class="btn ghost" id="downloadBackup">Download backup</button>
+        <label class="btn ghost file-btn">Restore backup
+          <input type="file" id="restoreBackup" accept="application/json,.json">
+        </label>
+      </div>
+    </div>
+    <nav class="wrap tabs no-print" role="tablist">
+      <button type="button" role="tab" class="tab" data-tab="week" aria-selected="true">This week</button>
+      <button type="button" role="tab" class="tab" data-tab="fees" aria-selected="false">Fees</button>
+      <button type="button" role="tab" class="tab" data-tab="students" aria-selected="false">Students</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <div id="banners"></div>
+
+    <!-- Weekly view -->
+    <section id="tab-week" class="panel">
+      <div class="toolbar">
+        <div class="picker">
+          <button type="button" class="btn icon no-print" id="prevWeek" aria-label="Previous week">◀</button>
+          <h2 id="weekLabel">Week of</h2>
+          <button type="button" class="btn icon no-print" id="nextWeek" aria-label="Next week">▶</button>
+          <button type="button" class="btn ghost small no-print" id="thisWeek">Today</button>
+        </div>
+        <div class="toolbar-actions no-print">
+          <button type="button" class="btn ghost small" id="copyPractice">Copy last week's practice</button>
+          <button type="button" class="btn ghost small" id="exportCsv">Export CSV</button>
+          <button type="button" class="btn ghost small" id="printWeek">Print</button>
+        </div>
+      </div>
+      <div class="summary" id="weekSummary"></div>
+      <div class="table-scroll">
+        <table class="grid week-table">
+          <thead>
+            <tr>
+              <th>Kid</th>
+              <th>Attendance</th>
+              <th>Lesson learnt</th>
+              <th>Practice lesson</th>
+              <th>Notes</th>
+              <th>Missed</th>
+            </tr>
+          </thead>
+          <tbody id="weekRows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="weekEmpty" hidden>No kids yet. Add your class on the <a href="#" data-goto="students">Students</a> tab.</p>
+    </section>
+
+    <!-- Fees -->
+    <section id="tab-fees" class="panel" hidden>
+      <div class="toolbar">
+        <div class="picker">
+          <button type="button" class="btn icon no-print" id="prevMonth" aria-label="Previous month">◀</button>
+          <h2 id="monthLabel">Month</h2>
+          <button type="button" class="btn icon no-print" id="nextMonth" aria-label="Next month">▶</button>
+        </div>
+      </div>
+      <div class="summary" id="feeSummary"></div>
+      <div class="table-scroll">
+        <table class="grid fee-table">
+          <thead>
+            <tr><th>Kid</th><th>Status</th><th>Amount</th><th>Paid on</th></tr>
+          </thead>
+          <tbody id="feeRows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="feeEmpty" hidden>No kids yet. Add your class on the <a href="#" data-goto="students">Students</a> tab.</p>
+    </section>
+
+    <!-- Students -->
+    <section id="tab-students" class="panel" hidden>
+      <form id="addStudent" class="card add-form">
+        <h2>Add a kid</h2>
+        <div class="form-row">
+          <label>Name<input name="name" required autocomplete="off" placeholder="e.g. Maya"></label>
+          <label>Instrument<input name="instrument" autocomplete="off" placeholder="e.g. Piano"></label>
+          <label>Parent contact<input name="contact" autocomplete="off" placeholder="Optional"></label>
+          <button type="submit" class="btn primary">Add</button>
+        </div>
+      </form>
+      <div class="table-scroll">
+        <table class="grid student-table">
+          <thead>
+            <tr><th>Name</th><th>Instrument</th><th>Parent contact</th><th>Missed (total)</th><th></th></tr>
+          </thead>
+          <tbody id="studentRows"></tbody>
+        </table>
+      </div>
+      <p class="privacy">🔒 Everything you enter stays in this browser on this device. Nothing is sent to GitHub or anywhere else. Use <b>Download backup</b> to keep a copy or move it to another device.</p>
+    </section>
+  </main>
+
+  <!-- Kid history -->
+  <dialog id="historyDialog">
+    <div class="dialog-head">
+      <h2 id="historyTitle">History</h2>
+      <button type="button" class="btn icon" id="closeHistory" aria-label="Close">✕</button>
+    </div>
+    <div id="historyBody"></div>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
