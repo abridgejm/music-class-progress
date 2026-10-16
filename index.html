@@ -6,7 +6,7 @@
   <title>Olympia Music Class Tracker</title>
   <meta name="description" content="A teacher's weekly tracker for attendance, singing lessons, practice, and monthly fees.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <header class="site-header">
@@ -23,7 +23,8 @@
     <nav class="wrap tabs no-print" role="tablist">
       <button type="button" role="tab" class="tab" data-tab="students" aria-selected="true">Students</button>
       <button type="button" role="tab" class="tab" data-tab="week" aria-selected="false">This week</button>
-      <button type="button" role="tab" class="tab" data-tab="songs" aria-selected="false">Songs &amp; skills</button>
+      <button type="button" role="tab" class="tab" data-tab="calendar" aria-selected="false">Calendar</button>
+      <button type="button" role="tab" class="tab" data-tab="songs" aria-selected="false">Songs<span class="wide-only"> &amp; skills</span></button>
       <button type="button" role="tab" class="tab" data-tab="fees" aria-selected="false">Fees</button>
     </nav>
     <div class="wrap batch-bar no-print">
@@ -71,6 +72,26 @@
         </table>
       </div>
       <p class="empty" id="weekEmpty" hidden>No kids yet. Add your class on the <a href="#" data-goto="students">Students</a> tab.</p>
+    </section>
+
+    <!-- Calendar -->
+    <section id="tab-calendar" class="panel" hidden>
+      <div class="toolbar">
+        <div class="picker">
+          <button type="button" class="btn icon no-print" id="prevCalMonth" aria-label="Previous month">◀</button>
+          <h2 id="calMonthLabel">Month</h2>
+          <button type="button" class="btn icon no-print" id="nextCalMonth" aria-label="Next month">▶</button>
+          <button type="button" class="btn ghost small no-print" id="thisCalMonth">Today</button>
+        </div>
+        <div class="cal-legend">
+          <span><i class="dot wed"></i>Wednesday batch</span>
+          <span><i class="dot fri"></i>Friday batch</span>
+          <span>💳 Fee reminder week</span>
+        </div>
+      </div>
+      <div class="summary" id="calSummary"></div>
+      <div class="calendar" id="calendar" role="grid" aria-label="Class calendar"></div>
+      <p class="cal-tip">Tap a class to open that week.</p>
     </section>
 
     <!-- Songs & skills -->
@@ -181,6 +202,6 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

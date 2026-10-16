@@ -89,6 +89,7 @@
   // ---------- State ----------
   let currentWeek = dateKey(mondayOf(new Date()));
   let currentMonth = monthKeyOf(new Date());
+  let calMonth = monthKeyOf(new Date());
   let currentTab = "week";
 
   // ---------- Helpers ----------
@@ -180,7 +181,7 @@
   function showTab(tab) {
     currentTab = tab;
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
-    ["students", "week", "songs", "fees"].forEach((t) => ($(`#tab-${t}`).hidden = t !== tab));
+    ["students", "week", "calendar", "songs", "fees"].forEach((t) => ($(`#tab-${t}`).hidden = t !== tab));
     try { sessionStorage.setItem("musicClass.tab", tab); } catch {}
     render();
   }
@@ -404,6 +405,56 @@
     } catch {
       prompt("Copy this update:", text);
     }
+  }
+
+  // ---------- Calendar ----------
+  function classSummary(week, batch) {
+    const kids = data.students.filter((s) => !s.archived && s.batch === batch.id);
+    let present = 0, absent = 0;
+    const lessons = new Set();
+    kids.forEach((k) => {
+      const e = weekEntry(week, k.id);
+      if (e.attendance === "present") present++;
+      if (e.attendance === "absent") absent++;
+      if (e.lessonLearnt?.trim()) lessons.add(e.lessonLearnt.trim());
+    });
+    return { kids: kids.length, present, absent, lesson: [...lessons][0] || "", moreLessons: lessons.size > 1 };
+  }
+
+  function renderCalendar() {
+    const first = parseKey(calMonth);
+    $("#calMonthLabel").textContent = fmtMonth(calMonth);
+    const todayKey = dateKey(new Date());
+    const batches = BATCHES.filter((b) => currentBatch === "all" || b.id === currentBatch);
+    const start = mondayOf(first);
+    const cells = [];
+    let classes = 0, marked = 0;
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach((d) => cells.push(`<div class="cal-head" role="columnheader">${d}</div>`));
+    for (let i = 0; i < 42; i++) {
+      const day = addDays(start, i);
+      if (i >= 35 && day.getMonth() !== first.getMonth()) break;
+      const key = dateKey(day);
+      const week = dateKey(mondayOf(day));
+      const inMonth = day.getMonth() === first.getMonth();
+      const chips = batches.filter((b) => classDay(week, b).getDate() === day.getDate() && classDay(week, b).getMonth() === day.getMonth()).map((b) => {
+        const sum = classSummary(week, b);
+        if (inMonth) { classes++; if (sum.present + sum.absent) marked++; }
+        const past = key < todayKey;
+        const status = sum.present + sum.absent
+          ? `<span class="cal-att">✅ ${sum.present}${sum.absent ? ` · ❌ ${sum.absent}` : ""}</span>`
+          : `<span class="cal-att muted">${past ? "Not marked" : `${sum.kids} kid${sum.kids === 1 ? "" : "s"}`}</span>`;
+        const fee = isLastWeekOfMonth(week) ? `<span class="cal-fee" title="Fee reminders go out this week">💳</span>` : "";
+        return `<button type="button" class="cal-class ${b.id}" data-week="${week}" data-batch="${b.id}" aria-label="${b.name} class on ${fmtDay(day)}">
+          <span class="cal-batch">${b.short}<span class="wide-only"> batch</span> ${fee}</span>
+          ${status}
+          ${sum.lesson ? `<span class="cal-lesson">${esc(sum.lesson)}${sum.moreLessons ? " +" : ""}</span>` : ""}
+        </button>`;
+      }).join("");
+      cells.push(`<div class="cal-day ${inMonth ? "" : "other"} ${key === todayKey ? "today" : ""}" role="gridcell">
+        <span class="cal-num">${day.getDate()}</span>${chips}</div>`);
+    }
+    $("#calendar").innerHTML = cells.join("");
+    $("#calSummary").innerHTML = `<span class="stat"><b>${classes}</b>classes this month</span><span class="stat"><b>${marked}</b>with attendance marked</span>`;
   }
 
   // ---------- Songs & skills ----------
@@ -640,6 +691,7 @@
     if (currentTab === "fees") renderFees();
     if (currentTab === "students") renderStudents();
     if (currentTab === "songs") renderSongs();
+    if (currentTab === "calendar") renderCalendar();
   }
 
   // ---------- Events ----------
@@ -662,6 +714,17 @@
   $("#exportCsv").addEventListener("click", exportCsv);
   $("#printWeek").addEventListener("click", () => window.print());
   $("#prevMonth").addEventListener("click", () => { currentMonth = addMonths(currentMonth, -1); renderFees(); });
+  $("#prevCalMonth").addEventListener("click", () => { calMonth = addMonths(calMonth, -1); renderCalendar(); });
+  $("#nextCalMonth").addEventListener("click", () => { calMonth = addMonths(calMonth, 1); renderCalendar(); });
+  $("#thisCalMonth").addEventListener("click", () => { calMonth = monthKeyOf(new Date()); renderCalendar(); });
+  $("#calendar").addEventListener("click", (ev) => {
+    const c = ev.target.closest(".cal-class");
+    if (!c) return;
+    currentWeek = c.dataset.week;
+    currentBatch = c.dataset.batch;
+    try { sessionStorage.setItem("musicClass.batch", currentBatch); } catch {}
+    showTab("week");
+  });
   $("#nextMonth").addEventListener("click", () => { currentMonth = addMonths(currentMonth, 1); renderFees(); });
 
   // Weekly table: attendance toggles and text fields
