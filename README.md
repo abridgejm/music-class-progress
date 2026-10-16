@@ -1,6 +1,6 @@
-# 🎵 Music Class Progress
+# 🎤 Singing Class Progress
 
-A simple weekly tracker for a music teacher. For each kid it tracks:
+A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 
 - **Attendance**: Present / Absent / Excused
 - **Lesson learnt** that week

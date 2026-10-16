@@ -1,4 +1,4 @@
-// Music Class Progress: all data stays in this browser (localStorage).
+// Singing Class Progress: all data stays in this browser (localStorage).
 (() => {
   "use strict";
 
@@ -175,7 +175,6 @@
         <tr data-id="${s.id}" class="${e.attendance === "absent" ? "is-absent" : ""}">
           <td>
             <button type="button" class="kid-name" data-action="history">${esc(s.name)}</button>
-            ${s.instrument ? `<span class="kid-sub">${esc(s.instrument)}</span>` : ""}
             ${feeBadge(s.id, month)}
           </td>
           <td>
@@ -183,8 +182,8 @@
               ${ATTENDANCE.map((a) => `<button type="button" data-v="${a.v}" aria-pressed="${e.attendance === a.v}">${a.label}</button>`).join("")}
             </div>
           </td>
-          <td><textarea data-field="lessonLearnt" rows="2" placeholder="What did they learn?">${esc(e.lessonLearnt)}</textarea></td>
-          <td><textarea data-field="practice" rows="2" placeholder="What to practise at home">${esc(e.practice)}</textarea></td>
+          <td><textarea data-field="lessonLearnt" rows="2" placeholder="e.g. Breathing, a new song verse">${esc(e.lessonLearnt)}</textarea></td>
+          <td><textarea data-field="practice" rows="2" placeholder="e.g. Warm-ups 10 min daily">${esc(e.practice)}</textarea></td>
           <td><textarea data-field="notes" rows="2" placeholder="Optional">${esc(e.notes)}</textarea></td>
           <td class="missed ${t.missed ? "has" : ""}" title="Excused absences count as missed">
             ${m.missed} this month<br><span class="kid-sub">${t.missed} total${t.excused ? ` (${t.excused} excused)` : ""}</span>
@@ -234,11 +233,11 @@
 
   function exportCsv() {
     const month = monthKeyOf(parseKey(currentWeek));
-    const rows = [["Week of", "Kid", "Instrument", "Attendance", "Lesson learnt", "Practice lesson", "Notes", "Missed this month", "Missed total", "Fee status"]];
+    const rows = [["Week of", "Kid", "Attendance", "Lesson learnt", "Practice lesson", "Notes", "Missed this month", "Missed total", "Fee status"]];
     activeStudents().forEach((s) => {
       const e = weekEntry(currentWeek, s.id);
       rows.push([
-        currentWeek, s.name, s.instrument, e.attendance || "", e.lessonLearnt, e.practice, e.notes,
+        currentWeek, s.name, e.attendance || "", e.lessonLearnt, e.practice, e.notes,
         missedCount(s.id, month).missed, missedCount(s.id).missed,
         FEE_STATUS[feeEntry(month, s.id).status || "unpaid"],
       ]);
@@ -291,7 +290,6 @@
     $("#studentRows").innerHTML = all.length ? all.map((s) => `
       <tr data-id="${s.id}" class="${s.archived ? "archived" : ""}">
         <td><input data-student="name" value="${esc(s.name)}" aria-label="Name"></td>
-        <td><input data-student="instrument" value="${esc(s.instrument)}" aria-label="Instrument"></td>
         <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent contact"></td>
         <td class="missed">${missedCount(s.id).missed}</td>
         <td><div class="row-actions">
@@ -300,7 +298,7 @@
           <button type="button" class="btn small ghost danger" data-action="delete">Delete</button>
         </div></td>
       </tr>`).join("")
-      : `<tr><td colspan="5" class="empty">No kids yet. Add your first one above.</td></tr>`;
+      : `<tr><td colspan="4" class="empty">No kids yet. Add your first one above.</td></tr>`;
   }
 
   function deleteStudent(id) {
@@ -323,7 +321,7 @@
     const t = missedCount(id);
     const attLabel = (a) => (ATTENDANCE.find((x) => x.v === a)?.label || "—");
 
-    $("#historyTitle").textContent = `${s.name}${s.instrument ? ` · ${s.instrument}` : ""}`;
+    $("#historyTitle").textContent = s.name;
     $("#historyBody").innerHTML = `
       <div class="summary">
         <span class="stat"><b>${weeks.filter((w) => data.weeks[w][id].attendance === "present").length}</b>classes attended</span>
@@ -377,7 +375,7 @@
         render();
         toast(`Restored ${restored.students.length} kids`);
       } catch {
-        toast("That file doesn't look like a Music Class backup");
+        toast("That file doesn't look like a Singing Class backup");
       }
     };
     reader.readAsText(file);
@@ -451,7 +449,7 @@
     const form = ev.target;
     const name = form.name.value.trim();
     if (!name) return;
-    data.students.push({ id: uid(), name, instrument: form.instrument.value.trim(), contact: form.contact.value.trim(), archived: false });
+    data.students.push({ id: uid(), name, contact: form.contact.value.trim(), archived: false });
     save();
     form.reset();
     form.name.focus();

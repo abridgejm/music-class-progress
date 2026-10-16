@@ -118,7 +118,7 @@ main { padding-top: 18px; padding-bottom: 48px; }
 .week-table { min-width: 940px; }
 .week-table td:nth-child(3), .week-table td:nth-child(4) { min-width: 200px; }
 .fee-table { min-width: 560px; }
-.student-table { min-width: 640px; }
+.student-table { min-width: 520px; }
 
 .kid-name { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--brand); cursor: pointer; text-align: left; }
 .kid-name:hover { text-decoration: underline; }
