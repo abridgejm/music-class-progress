@@ -226,3 +226,9 @@ label.check input { width: auto; }
 .batch-label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 #batchPicker button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
 .class-date { text-align: center; font-size: .85rem; font-weight: 600; color: var(--brand); }
+.batch-toggle button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+tr.needs-batch .batch-toggle { outline: 2px dashed var(--warn); outline-offset: 2px; }
+tr.group-row td { background: var(--surface-2); font-weight: 700; font-size: .85rem; color: var(--muted); padding-top: 8px; padding-bottom: 8px; }
+.student-table td:first-child { min-width: 140px; }
+.student-table .row-actions { flex-wrap: nowrap; }
+.student-table td { vertical-align: middle; }

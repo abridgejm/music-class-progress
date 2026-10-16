@@ -98,8 +98,9 @@
   const batchOf = (s) => BATCHES.find((b) => b.id === s?.batch) || null;
   let currentBatch = "wed";
   try { currentBatch = sessionStorage.getItem("musicClass.batch") || currentBatch; } catch {}
-  // Kids without a batch yet show in every view until one is picked
-  const inBatch = (s) => currentBatch === "all" || !s.batch || s.batch === currentBatch;
+  // Kids show only in their own batch; kids without one appear under All
+  const inBatch = (s) => currentBatch === "all" || s.batch === currentBatch;
+  const unassigned = () => data.students.filter((s) => !s.archived && !batchOf(s));
   const activeStudents = () =>
     data.students.filter((s) => !s.archived && inBatch(s)).sort((a, b) => a.name.localeCompare(b.name));
   // The actual class day within a Monday-keyed week
@@ -161,6 +162,11 @@
       if (stale) {
         out.push(`<div class="banner no-print"><span>💾 ${last ? `Last backup was ${fmtDay(last)}.` : "You haven't made a backup yet."} Your class data lives only in this browser, so grab a copy now and then.</span><button type="button" class="btn small primary" data-action="backup">Download backup</button></div>`);
       }
+    }
+    const loose = unassigned().length;
+    if (loose) {
+      const msg = `👋 ${loose} kid${loose === 1 ? " doesn't" : "s don't"} have a batch yet${currentBatch === "all" ? "" : ", so they're only shown under All"}.`;
+      out.push(`<div class="banner warn no-print"><span>${msg}</span>${currentTab === "students" && currentBatch === "all" ? "" : `<button type="button" class="btn small primary" data-action="assign-batches">Assign batches</button>`}</div>`);
     }
     $("#banners").innerHTML = out.join("");
   }
@@ -446,22 +452,26 @@
   // ---------- Students ----------
   function renderStudents() {
     const all = data.students.filter(inBatch).sort((a, b) => (a.archived - b.archived) || a.name.localeCompare(b.name));
-    $("#studentRows").innerHTML = all.length ? all.map((s) => `
-      <tr data-id="${s.id}" class="${s.archived ? "archived" : ""}">
+    const rowHtml = (s) => `
+      <tr data-id="${s.id}" class="${s.archived ? "archived" : ""} ${batchOf(s) ? "" : "needs-batch"}">
         <td><input data-student="name" value="${esc(s.name)}" aria-label="Name"></td>
+        <td><div class="att batch-toggle" role="group" aria-label="Batch for ${esc(s.name)}">
+          ${BATCHES.map((b) => `<button type="button" data-set-batch="${b.id}" aria-pressed="${s.batch === b.id}">${b.short}</button>`).join("")}
+        </div></td>
         <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent phone"></td>
-        <td><select data-student="batch" aria-label="Batch">
-          ${s.batch ? "" : `<option value="" selected>Pick a batch</option>`}
-          ${BATCHES.map((b) => `<option value="${b.id}" ${s.batch === b.id ? "selected" : ""}>${b.name}</option>`).join("")}
-        </select></td>
         <td class="missed">${missedCount(s.id).missed}</td>
         <td><div class="row-actions">
           <button type="button" class="btn small ghost" data-action="history">History</button>
           <button type="button" class="btn small ghost" data-action="archive">${s.archived ? "Restore" : "Archive"}</button>
           <button type="button" class="btn small ghost danger" data-action="delete">Delete</button>
         </div></td>
-      </tr>`).join("")
-      : `<tr><td colspan="5" class="empty">No kids in this batch yet. Add one above.</td></tr>`;
+      </tr>`;
+    const group = (title, kids) => kids.length ? `<tr class="group-row"><td colspan="5">${title} · ${kids.length} kid${kids.length === 1 ? "" : "s"}</td></tr>${kids.map(rowHtml).join("")}` : "";
+    $("#studentRows").innerHTML = !all.length
+      ? `<tr><td colspan="5" class="empty">No kids in this batch yet. Add one above.</td></tr>`
+      : currentBatch === "all"
+        ? group("⚠️ Needs a batch", all.filter((s) => !batchOf(s))) + BATCHES.map((b) => group(`${b.name} batch`, all.filter((s) => s.batch === b.id))).join("")
+        : all.map(rowHtml).join("");
   }
 
   function deleteStudent(id) {
@@ -594,6 +604,11 @@
     const go = ev.target.closest("[data-goto]");
     if (go) { ev.preventDefault(); showTab(go.dataset.goto); }
     if (ev.target.closest('[data-action="backup"]')) downloadBackup();
+    if (ev.target.closest('[data-action="assign-batches"]')) {
+      currentBatch = "all";
+      try { sessionStorage.setItem("musicClass.batch", currentBatch); } catch {}
+      showTab("students");
+    }
   });
 
   $("#prevWeek").addEventListener("click", () => { currentWeek = dateKey(addDays(parseKey(currentWeek), -7)); renderWeek(); });
@@ -721,6 +736,17 @@
   $("#studentRows").addEventListener("click", (ev) => {
     const row = ev.target.closest("tr[data-id]");
     const action = ev.target.closest("[data-action]")?.dataset.action;
+    const setBatch = ev.target.closest("[data-set-batch]");
+    if (row && setBatch) {
+      const s = studentById(row.dataset.id);
+      if (s.batch === setBatch.dataset.setBatch) return;
+      s.batch = setBatch.dataset.setBatch;
+      save();
+      renderStudents();
+      renderBanners();
+      toast(`${s.name} → ${batchOf(s).name} batch`);
+      return;
+    }
     if (!row || !action) return;
     const s = studentById(row.dataset.id);
     if (action === "history") openHistory(s.id);
