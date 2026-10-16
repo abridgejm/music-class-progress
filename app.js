@@ -9,6 +9,11 @@
     { v: "absent", label: "Absent" },
   ];
   const FEE_STATUS = { unpaid: "Unpaid", partial: "Partial", paid: "Paid" };
+  // Week fields that can be shared across ticked kids
+  const SAME = {
+    lessonLearnt: { flag: "sameLesson", all: "#sameLessonAll" },
+    practice: { flag: "samePractice", all: "#samePracticeAll" },
+  };
   const SONG_STATUS = [
     { v: "learning", label: "🌱 Learning" },
     { v: "gotit", label: "✅ Got it" },
@@ -215,17 +220,21 @@
           </td>
           <td>
             <textarea data-field="lessonLearnt" rows="2" placeholder="e.g. Breathing, a new song verse">${esc(e.lessonLearnt)}</textarea>
-            <label class="same-lesson no-print"><input type="checkbox" data-same-lesson ${e.sameLesson ? "checked" : ""}> Same lesson</label>
+            <label class="same-lesson no-print"><input type="checkbox" data-same="lessonLearnt" ${e.sameLesson ? "checked" : ""}> Same lesson</label>
           </td>
-          <td><textarea data-field="practice" rows="2" placeholder="e.g. Warm-ups 10 min daily">${esc(e.practice)}</textarea></td>
+          <td>
+            <textarea data-field="practice" rows="2" placeholder="e.g. Warm-ups 10 min daily">${esc(e.practice)}</textarea>
+            <label class="same-lesson no-print"><input type="checkbox" data-same="practice" ${e.samePractice ? "checked" : ""}> Same practice</label>
+          </td>
           <td><textarea data-field="notes" rows="2" placeholder="Optional">${esc(e.notes)}</textarea></td>
           <td class="missed ${t.missed ? "has" : ""}">
             ${m.missed} this month<br><span class="kid-sub">${t.missed} total</span>
           </td>
         </tr>`;
     }).join("");
-    const boxes = kids.map((k) => !!weekEntry(currentWeek, k.id).sameLesson);
-    $("#sameLessonAll").checked = boxes.length > 0 && boxes.every(Boolean);
+    Object.values(SAME).forEach((cfg) => {
+      $(cfg.all).checked = kids.length > 0 && kids.every((k) => !!weekEntry(currentWeek, k.id)[cfg.flag]);
+    });
     renderWeekSummary();
   }
 
@@ -639,54 +648,57 @@
     const row = ev.target.closest("tr[data-id]");
     if (!field || !row) return;
     weekEntry(currentWeek, row.dataset.id, true)[field] = ev.target.value;
-    // Typing in a "Same lesson" row updates every other ticked row too
-    if (field === "lessonLearnt" && weekEntry(currentWeek, row.dataset.id).sameLesson) {
-      sameLessonRows().forEach((r) => {
+    // Typing in a ticked "Same lesson" / "Same practice" row updates the other ticked rows too
+    if (SAME[field] && weekEntry(currentWeek, row.dataset.id)[SAME[field].flag]) {
+      sameRows(field).forEach((r) => {
         if (r === row) return;
-        r.querySelector('[data-field="lessonLearnt"]').value = ev.target.value;
-        weekEntry(currentWeek, r.dataset.id, true).lessonLearnt = ev.target.value;
+        r.querySelector(`[data-field="${field}"]`).value = ev.target.value;
+        weekEntry(currentWeek, r.dataset.id, true)[field] = ev.target.value;
       });
     }
     save();
   });
 
-  // ---------- Same lesson ----------
-  const sameLessonRows = () =>
-    [...document.querySelectorAll("#weekRows tr[data-id]")].filter((r) => r.querySelector("[data-same-lesson]").checked);
+  // ---------- Same lesson / same practice ----------
+  const sameRows = (field) =>
+    [...document.querySelectorAll("#weekRows tr[data-id]")].filter((r) => r.querySelector(`[data-same="${field}"]`).checked);
 
-  function syncSameLesson(preferRow = null) {
-    const rows = sameLessonRows();
-    const lessonOf = (r) => r.querySelector('[data-field="lessonLearnt"]').value;
-    // Use the lesson from another ticked row first; otherwise keep the one just ticked
-    const source = rows.find((r) => r !== preferRow && lessonOf(r).trim()) || (preferRow && lessonOf(preferRow).trim() ? preferRow : null);
+  function syncSame(field, preferRow = null) {
+    const rows = sameRows(field);
+    const textOf = (r) => r.querySelector(`[data-field="${field}"]`).value;
+    // Use the text from another ticked row first; otherwise keep the one just ticked
+    const source = rows.find((r) => r !== preferRow && textOf(r).trim()) || (preferRow && textOf(preferRow).trim() ? preferRow : null);
     if (source) {
-      const text = lessonOf(source);
+      const text = textOf(source);
       rows.forEach((r) => {
-        r.querySelector('[data-field="lessonLearnt"]').value = text;
-        weekEntry(currentWeek, r.dataset.id, true).lessonLearnt = text;
+        r.querySelector(`[data-field="${field}"]`).value = text;
+        weekEntry(currentWeek, r.dataset.id, true)[field] = text;
       });
     }
-    const all = [...document.querySelectorAll("#weekRows [data-same-lesson]")];
-    $("#sameLessonAll").checked = all.length > 0 && all.every((c) => c.checked);
+    const all = [...document.querySelectorAll(`#weekRows [data-same="${field}"]`)];
+    $(SAME[field].all).checked = all.length > 0 && all.every((c) => c.checked);
     save();
   }
 
   $("#weekRows").addEventListener("change", (ev) => {
-    if (!ev.target.matches("[data-same-lesson]")) return;
+    const field = ev.target.dataset.same;
+    if (!SAME[field]) return;
     const row = ev.target.closest("tr[data-id]");
-    weekEntry(currentWeek, row.dataset.id, true).sameLesson = ev.target.checked;
-    syncSameLesson(row);
+    weekEntry(currentWeek, row.dataset.id, true)[SAME[field].flag] = ev.target.checked;
+    syncSame(field, row);
   });
-  $("#sameLessonAll").addEventListener("change", (ev) => {
-    const rows = [...document.querySelectorAll("#weekRows tr[data-id]")];
-    rows.forEach((r) => {
-      r.querySelector("[data-same-lesson]").checked = ev.target.checked;
-      weekEntry(currentWeek, r.dataset.id, true).sameLesson = ev.target.checked;
+  Object.entries(SAME).forEach(([field, cfg]) => {
+    $(cfg.all).addEventListener("change", (ev) => {
+      const rows = [...document.querySelectorAll("#weekRows tr[data-id]")];
+      rows.forEach((r) => {
+        r.querySelector(`[data-same="${field}"]`).checked = ev.target.checked;
+        weekEntry(currentWeek, r.dataset.id, true)[cfg.flag] = ev.target.checked;
+      });
+      // Copy from the first kid who already has something written
+      const first = rows.find((r) => r.querySelector(`[data-field="${field}"]`).value.trim());
+      if (ev.target.checked) syncSame(field, first || null);
+      else save();
     });
-    // Copy from the first kid who already has a lesson written
-    const first = rows.find((r) => r.querySelector('[data-field="lessonLearnt"]').value.trim());
-    if (ev.target.checked) syncSameLesson(first || null);
-    else save();
   });
 
   // Fees table
