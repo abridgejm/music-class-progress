@@ -6,6 +6,7 @@ A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 - **Lesson learnt** that week
 - **Practice lesson** (homework for the week)
 - **Missed classes**: counted automatically, this month and in total
+- **Songs & skills**: each kid's songs and skills, marked Learning → Got it → Performance-ready
 - **Fees**: monthly status (Paid / Partial / Unpaid), amount, and date paid
 
 Click any kid's name to see their full history.

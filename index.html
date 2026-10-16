@@ -6,7 +6,7 @@
   <title>Singing Class Progress</title>
   <meta name="description" content="A teacher's weekly tracker for attendance, singing lessons, practice, and monthly fees.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <header class="site-header">
@@ -22,6 +22,7 @@
     <nav class="wrap tabs no-print" role="tablist">
       <button type="button" role="tab" class="tab" data-tab="students" aria-selected="true">Students</button>
       <button type="button" role="tab" class="tab" data-tab="week" aria-selected="false">This week</button>
+      <button type="button" role="tab" class="tab" data-tab="songs" aria-selected="false">Songs &amp; skills</button>
       <button type="button" role="tab" class="tab" data-tab="fees" aria-selected="false">Fees</button>
     </nav>
   </header>
@@ -61,6 +62,32 @@
         </table>
       </div>
       <p class="empty" id="weekEmpty" hidden>No kids yet. Add your class on the <a href="#" data-goto="students">Students</a> tab.</p>
+    </section>
+
+    <!-- Songs & skills -->
+    <section id="tab-songs" class="panel" hidden>
+      <div id="songsBody">
+        <div class="toolbar">
+          <label class="kid-pick">Kid<select id="songKid"></select></label>
+        </div>
+        <form id="addSong" class="card add-form">
+          <h2>Add a song or skill</h2>
+          <div class="form-row">
+            <label>Type<select name="kind"><option value="song">Song</option><option value="skill">Skill</option></select></label>
+            <label>Title<input name="title" required autocomplete="off" placeholder="e.g. Edelweiss, Breath control"></label>
+            <label class="check"><input type="checkbox" name="all"> Add for the whole class</label>
+            <button type="submit" class="btn primary">Add</button>
+          </div>
+        </form>
+        <div class="summary" id="songSummary"></div>
+        <div class="table-scroll">
+          <table class="grid song-table">
+            <thead><tr><th>Song / skill</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+            <tbody id="songRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="empty" id="songEmpty" hidden>No kids yet. Add your class on the <a href="#" data-goto="students">Students</a> tab.</p>
     </section>
 
     <!-- Fees -->
@@ -117,6 +144,6 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

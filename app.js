@@ -9,10 +9,16 @@
     { v: "absent", label: "Absent" },
   ];
   const FEE_STATUS = { unpaid: "Unpaid", partial: "Partial", paid: "Paid" };
+  const SONG_STATUS = [
+    { v: "learning", label: "🌱 Learning" },
+    { v: "gotit", label: "✅ Got it" },
+    { v: "ready", label: "⭐ Performance-ready" },
+  ];
+  const songStatusLabel = (v) => SONG_STATUS.find((x) => x.v === v)?.label || "";
 
   // ---------- Storage ----------
   let storageOk = true;
-  const emptyData = () => ({ students: [], weeks: {}, fees: {}, lastBackup: null });
+  const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, lastBackup: null });
 
   function load() {
     try {
@@ -44,6 +50,7 @@
       students: d.students.filter((s) => s && s.id && typeof s.name === "string"),
       weeks: d.weeks && typeof d.weeks === "object" ? d.weeks : {},
       fees: d.fees && typeof d.fees === "object" ? d.fees : {},
+      songs: d.songs && typeof d.songs === "object" ? d.songs : {},
       lastBackup: d.lastBackup || null,
     };
   }
@@ -148,7 +155,7 @@
   function showTab(tab) {
     currentTab = tab;
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
-    ["week", "fees", "students"].forEach((t) => ($(`#tab-${t}`).hidden = t !== tab));
+    ["students", "week", "songs", "fees"].forEach((t) => ($(`#tab-${t}`).hidden = t !== tab));
     try { sessionStorage.setItem("musicClass.tab", tab); } catch {}
     render();
   }
@@ -262,6 +269,13 @@
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
     if (e.practice?.trim()) lines.push(`🏠 Practice at home: ${e.practice.trim()}`);
     lines.push(...missedReport(id, month));
+    // Songs and skills whose status changed during this week
+    const weekEnd = dateKey(addDays(monday, 7));
+    const changed = (data.songs[id] || []).filter((x) => x.updated >= currentWeek && x.updated < weekEnd);
+    if (changed.length) {
+      lines.push("🎵 Songs & skills:");
+      changed.forEach((x) => lines.push(`   • ${x.title}: ${songStatusLabel(x.status)}`));
+    }
     if (isLastWeekOfMonth(currentWeek)) {
       const f = feeEntry(month, id);
       const status = f.status || "unpaid";
@@ -314,6 +328,49 @@
     } catch {
       prompt("Copy this update:", text);
     }
+  }
+
+  // ---------- Songs & skills ----------
+  let songKid = null;
+  const sortedSongs = (id) =>
+    [...(data.songs[id] || [])].sort((a, b) => a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
+
+  function renderSongs() {
+    const kids = activeStudents();
+    $("#songEmpty").hidden = kids.length > 0;
+    $("#songsBody").hidden = kids.length === 0;
+    if (!kids.length) return;
+    if (!kids.some((k) => k.id === songKid)) songKid = kids[0].id;
+    $("#songKid").innerHTML = kids.map((k) => `<option value="${k.id}" ${k.id === songKid ? "selected" : ""}>${esc(k.name)}</option>`).join("");
+    const items = sortedSongs(songKid);
+    const counts = Object.fromEntries(SONG_STATUS.map((x) => [x.v, 0]));
+    items.forEach((x) => counts[x.status]++);
+    $("#songSummary").innerHTML = items.length ? SONG_STATUS.map((x) => `<span class="stat"><b>${counts[x.v]}</b>${x.label}</span>`).join("") : "";
+    $("#songRows").innerHTML = items.length ? items.map((x) => `
+      <tr data-song="${x.id}">
+        <td>${esc(x.title)}<span class="kind">${x.kind === "skill" ? "Skill" : "Song"}</span></td>
+        <td><div class="att" role="group" aria-label="Status for ${esc(x.title)}">
+          ${SONG_STATUS.map((st) => `<button type="button" data-v="${st.v}" aria-pressed="${x.status === st.v}">${st.label}</button>`).join("")}
+        </div></td>
+        <td class="kid-sub">${x.updated ? esc(fmtDay(parseKey(x.updated))) : ""}</td>
+        <td><button type="button" class="btn small ghost danger" data-action="remove-song">Remove</button></td>
+      </tr>`).join("")
+      : `<tr><td colspan="4" class="empty">No songs or skills yet. Add one above.</td></tr>`;
+  }
+
+  function addSong(kind, title, everyone) {
+    const today = dateKey(new Date());
+    const ids = everyone ? activeStudents().map((k) => k.id) : [songKid];
+    let added = 0;
+    ids.forEach((id) => {
+      const list = (data.songs[id] ||= []);
+      if (list.some((x) => x.title.toLowerCase() === title.toLowerCase())) return;
+      list.push({ id: uid(), kind, title, status: "learning", updated: today });
+      added++;
+    });
+    save();
+    renderSongs();
+    toast(everyone ? `Added "${title}" for ${added} kid${added === 1 ? "" : "s"}` : added ? `Added "${title}"` : `"${title}" is already on the list`);
   }
 
   // ---------- Fees ----------
@@ -378,6 +435,7 @@
     data.students = data.students.filter((x) => x.id !== id);
     Object.values(data.weeks).forEach((w) => delete w[id]);
     Object.values(data.fees).forEach((m) => delete m[id]);
+    delete data.songs[id];
     save();
     render();
     toast(`${s.name} deleted`);
@@ -406,6 +464,10 @@
           const e = data.weeks[w][id];
           return `<tr class="${e.attendance === "absent" ? "is-absent" : ""}"><td>${esc(fmtDay(parseKey(w)))}</td><td>${attLabel(e.attendance)}</td><td>${esc(e.lessonLearnt)}</td><td>${esc(e.practice)}</td><td>${esc(e.notes)}</td></tr>`;
         }).join("")}</tbody></table></div>` : `<p class="empty">No weeks recorded yet.</p>`}
+      <h3>Songs &amp; skills</h3>
+      ${(data.songs[id] || []).length ? `<div class="table-scroll"><table class="grid">
+        <thead><tr><th>Song / skill</th><th>Status</th><th>Updated</th></tr></thead>
+        <tbody>${sortedSongs(id).map((x) => `<tr><td>${esc(x.title)}<span class="kind">${x.kind === "skill" ? "Skill" : "Song"}</span></td><td>${songStatusLabel(x.status)}</td><td>${x.updated ? esc(fmtDay(parseKey(x.updated))) : ""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="empty">No songs or skills yet.</p>`}
       <h3>Fees</h3>
       ${months.length ? `<div class="table-scroll"><table class="grid">
         <thead><tr><th>Month</th><th>Status</th><th>Amount</th><th>Paid on</th></tr></thead>
@@ -458,6 +520,7 @@
     if (currentTab === "week") renderWeek();
     if (currentTab === "fees") renderFees();
     if (currentTab === "students") renderStudents();
+    if (currentTab === "songs") renderSongs();
   }
 
   // ---------- Events ----------
@@ -552,6 +615,36 @@
       renderStudents();
       toast(s.archived ? `${s.name} archived (history kept)` : `${s.name} restored`);
     }
+  });
+
+  // Songs & skills
+  $("#songKid").addEventListener("change", (ev) => { songKid = ev.target.value; renderSongs(); });
+  $("#addSong").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const form = ev.target;
+    const title = form.title.value.trim();
+    if (!title) return;
+    addSong(form.kind.value, title, form.all.checked);
+    form.title.value = "";
+    form.title.focus();
+  });
+  $("#songRows").addEventListener("click", (ev) => {
+    const row = ev.target.closest("tr[data-song]");
+    if (!row) return;
+    const list = data.songs[songKid] || [];
+    const item = list.find((x) => x.id === row.dataset.song);
+    if (!item) return;
+    if (ev.target.closest('[data-action="remove-song"]')) {
+      if (!confirm(`Remove "${item.title}"?`)) return;
+      data.songs[songKid] = list.filter((x) => x !== item);
+    } else {
+      const btn = ev.target.closest(".att button");
+      if (!btn || btn.dataset.v === item.status) return;
+      item.status = btn.dataset.v;
+      item.updated = dateKey(new Date());
+    }
+    save();
+    renderSongs();
   });
 
   $("#downloadBackup").addEventListener("click", downloadBackup);
