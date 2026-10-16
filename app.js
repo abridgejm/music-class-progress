@@ -7,7 +7,6 @@
   const ATTENDANCE = [
     { v: "present", label: "Present" },
     { v: "absent", label: "Absent" },
-    { v: "excused", label: "Excused" },
   ];
   const FEE_STATUS = { unpaid: "Unpaid", partial: "Partial", paid: "Paid" };
 
@@ -38,6 +37,9 @@
   function normalize(d) {
     if (!d || typeof d !== "object") throw new Error("Not a backup file");
     if (!Array.isArray(d.students)) throw new Error("Missing students");
+    // "Excused" was removed; older entries count as absent
+    Object.values(d.weeks || {}).forEach((w) =>
+      Object.values(w || {}).forEach((e) => { if (e && e.attendance === "excused") e.attendance = "absent"; }));
     return {
       students: d.students.filter((s) => s && s.id && typeof s.name === "string"),
       weeks: d.weeks && typeof d.weeks === "object" ? d.weeks : {},
@@ -107,16 +109,15 @@
     return data.fees[month][id];
   }
 
-  // Missed = absent + excused, counted over all weeks or only weeks starting in a month
+  // Missed = absent, counted over all weeks or only weeks starting in a month
   function missedCount(id, month = null) {
-    let missed = 0, excused = 0;
+    let missed = 0;
     for (const [week, entries] of Object.entries(data.weeks)) {
       if (month && week.slice(0, 7) !== month) continue;
       const a = entries[id]?.attendance;
       if (a === "absent") missed++;
-      if (a === "excused") { missed++; excused++; }
     }
-    return { missed, excused };
+    return { missed };
   }
 
   let toastTimer;
@@ -186,8 +187,8 @@
           <td><textarea data-field="lessonLearnt" rows="2" placeholder="e.g. Breathing, a new song verse">${esc(e.lessonLearnt)}</textarea></td>
           <td><textarea data-field="practice" rows="2" placeholder="e.g. Warm-ups 10 min daily">${esc(e.practice)}</textarea></td>
           <td><textarea data-field="notes" rows="2" placeholder="Optional">${esc(e.notes)}</textarea></td>
-          <td class="missed ${t.missed ? "has" : ""}" title="Excused absences count as missed">
-            ${m.missed} this month<br><span class="kid-sub">${t.missed} total${t.excused ? ` (${t.excused} excused)` : ""}</span>
+          <td class="missed ${t.missed ? "has" : ""}">
+            ${m.missed} this month<br><span class="kid-sub">${t.missed} total</span>
           </td>
         </tr>`;
     }).join("");
@@ -197,7 +198,7 @@
   function renderWeekSummary() {
     const kids = activeStudents();
     const month = monthKeyOf(parseKey(currentWeek));
-    const counts = { present: 0, absent: 0, excused: 0, unmarked: 0 };
+    const counts = { present: 0, absent: 0, unmarked: 0 };
     kids.forEach((s) => {
       const a = weekEntry(currentWeek, s.id).attendance;
       counts[a || "unmarked"]++;
@@ -206,7 +207,6 @@
     $("#weekSummary").innerHTML = kids.length ? `
       <span class="stat"><b>${counts.present}</b>present</span>
       <span class="stat"><b>${counts.absent}</b>absent</span>
-      <span class="stat"><b>${counts.excused}</b>excused</span>
       <span class="stat"><b>${counts.unmarked}</b>not marked</span>
       <span class="stat"><b>${unpaid}</b>fees not fully paid (${esc(fmtMonth(month))})</span>` : "";
   }
@@ -256,7 +256,6 @@
     const lines = [`Hi! Here's ${s.name}'s singing update for the week of ${fmtDay(monday)} 🎤`, ""];
     if (e.attendance === "present") lines.push("✅ Attended class");
     if (e.attendance === "absent") lines.push("❌ Missed class this week");
-    if (e.attendance === "excused") lines.push("🙏 Excused from class this week");
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
     if (e.practice?.trim()) lines.push(`🏠 Practice at home: ${e.practice.trim()}`);
     lines.push(...missedReport(id, month));
@@ -272,9 +271,9 @@
   function missedReport(id, month) {
     const monthName = parseKey(month).toLocaleDateString(undefined, { month: "long" });
     const dates = Object.keys(data.weeks)
-      .filter((w) => w.slice(0, 7) === month && ["absent", "excused"].includes(data.weeks[w][id]?.attendance))
+      .filter((w) => w.slice(0, 7) === month && data.weeks[w][id]?.attendance === "absent")
       .sort()
-      .map((w) => parseKey(w).toLocaleDateString(undefined, { month: "short", day: "numeric" }) + (data.weeks[w][id].attendance === "excused" ? " (excused)" : ""));
+      .map((w) => parseKey(w).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
     const total = missedCount(id).missed;
     if (!dates.length) {
       return [`📅 No missed classes in ${monthName} 🌟${total ? ` (${total} missed in total)` : ""}`];
@@ -392,7 +391,7 @@
     $("#historyBody").innerHTML = `
       <div class="summary">
         <span class="stat"><b>${weeks.filter((w) => data.weeks[w][id].attendance === "present").length}</b>classes attended</span>
-        <span class="stat"><b>${t.missed}</b>missed${t.excused ? ` (${t.excused} excused)` : ""}</span>
+        <span class="stat"><b>${t.missed}</b>missed</span>
         ${s.contact ? `<span class="stat">Parent: ${esc(s.contact)}</span>` : ""}
       </div>
       <h3>Weekly progress</h3>

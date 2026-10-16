@@ -2,7 +2,7 @@
 
 A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 
-- **Attendance**: Present / Absent / Excused
+- **Attendance**: Present / Absent
 - **Lesson learnt** that week
 - **Practice lesson** (homework for the week)
 - **Missed classes**: counted automatically, this month and in total
