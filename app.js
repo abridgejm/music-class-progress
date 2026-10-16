@@ -176,6 +176,7 @@
           <td>
             <button type="button" class="kid-name" data-action="history">${esc(s.name)}</button>
             ${feeBadge(s.id, month)}
+            <button type="button" class="btn small ghost share-btn no-print" data-action="share" aria-label="Share ${esc(s.name)}'s update with their parent">💬 Share</button>
           </td>
           <td>
             <div class="att" role="group" aria-label="Attendance for ${esc(s.name)}">
@@ -245,6 +246,53 @@
     download(`music-class-week-${currentWeek}.csv`, rows.map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
   }
 
+  // ---------- Share with parents ----------
+  // Teacher notes stay private; fees are mentioned only when not fully paid
+  function parentMessage(id) {
+    const s = studentById(id);
+    const monday = parseKey(currentWeek);
+    const month = monthKeyOf(monday);
+    const e = weekEntry(currentWeek, id);
+    const lines = [`Hi! Here's ${s.name}'s singing update for the week of ${fmtDay(monday)} 🎤`, ""];
+    if (e.attendance === "present") lines.push("✅ Attended class");
+    if (e.attendance === "absent") lines.push("❌ Missed class this week");
+    if (e.attendance === "excused") lines.push("🙏 Excused from class this week");
+    if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
+    if (e.practice?.trim()) lines.push(`🏠 Practice at home: ${e.practice.trim()}`);
+    const f = feeEntry(month, id);
+    const status = f.status || "unpaid";
+    if (status === "unpaid") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are still due.`);
+    if (status === "partial") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are partly paid${Number(f.amount) ? ` (${f.amount} received)` : ""}.`);
+    lines.push("", "See you next week! 🎶");
+    return lines.join("\n");
+  }
+
+  const phoneOf = (contact) => {
+    const digits = String(contact || "").replace(/[^\d+]/g, "");
+    return digits.replace(/\D/g, "").length >= 7 ? digits : "";
+  };
+
+  async function shareUpdate(id) {
+    const s = studentById(id);
+    const text = parentMessage(id);
+    const phone = phoneOf(s.contact);
+    // A saved parent phone number opens Messages addressed to them
+    if (phone) {
+      location.href = `sms:${phone}?&body=${encodeURIComponent(text)}`;
+      return;
+    }
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch { /* share sheet dismissed */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Update copied. Paste it into Messages");
+    } catch {
+      prompt("Copy this update:", text);
+    }
+  }
+
   // ---------- Fees ----------
   function renderFees() {
     $("#monthLabel").textContent = fmtMonth(currentMonth);
@@ -290,7 +338,7 @@
     $("#studentRows").innerHTML = all.length ? all.map((s) => `
       <tr data-id="${s.id}" class="${s.archived ? "archived" : ""}">
         <td><input data-student="name" value="${esc(s.name)}" aria-label="Name"></td>
-        <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent contact"></td>
+        <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent phone"></td>
         <td class="missed">${missedCount(s.id).missed}</td>
         <td><div class="row-actions">
           <button type="button" class="btn small ghost" data-action="history">History</button>
@@ -412,6 +460,7 @@
     if (!row) return;
     const id = row.dataset.id;
     if (ev.target.closest('[data-action="history"]')) return openHistory(id);
+    if (ev.target.closest('[data-action="share"]')) return shareUpdate(id);
     const btn = ev.target.closest(".att button");
     if (!btn) return;
     const e = weekEntry(currentWeek, id, true);

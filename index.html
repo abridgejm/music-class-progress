@@ -90,14 +90,14 @@
         <h2>Add a kid</h2>
         <div class="form-row">
           <label>Name<input name="name" required autocomplete="off" placeholder="e.g. Maya"></label>
-          <label>Parent contact<input name="contact" autocomplete="off" placeholder="Optional"></label>
+          <label>Parent phone<input name="contact" type="tel" autocomplete="off" placeholder="For sharing updates in Messages"></label>
           <button type="submit" class="btn primary">Add</button>
         </div>
       </form>
       <div class="table-scroll">
         <table class="grid student-table">
           <thead>
-            <tr><th>Name</th><th>Parent contact</th><th>Missed (total)</th><th></th></tr>
+            <tr><th>Name</th><th>Parent phone</th><th>Missed (total)</th><th></th></tr>
           </thead>
           <tbody id="studentRows"></tbody>
         </table>
