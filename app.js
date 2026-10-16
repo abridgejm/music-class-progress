@@ -247,7 +247,10 @@
   }
 
   // ---------- Share with parents ----------
-  // Teacher notes stay private; fees are mentioned only when not fully paid
+  // Teacher notes stay private; fees are mentioned only when not fully paid,
+  // and only in the last class week of the month
+  const isLastWeekOfMonth = (week) => monthKeyOf(addDays(parseKey(week), 7)) !== week.slice(0, 7);
+
   function parentMessage(id) {
     const s = studentById(id);
     const monday = parseKey(currentWeek);
@@ -259,10 +262,12 @@
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
     if (e.practice?.trim()) lines.push(`🏠 Practice at home: ${e.practice.trim()}`);
     lines.push(...missedReport(id, month));
-    const f = feeEntry(month, id);
-    const status = f.status || "unpaid";
-    if (status === "unpaid") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are still due.`);
-    if (status === "partial") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are partly paid${Number(f.amount) ? ` (${f.amount} received)` : ""}.`);
+    if (isLastWeekOfMonth(currentWeek)) {
+      const f = feeEntry(month, id);
+      const status = f.status || "unpaid";
+      if (status === "unpaid") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are still due.`);
+      if (status === "partial") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are partly paid${Number(f.amount) ? ` (${f.amount} received)` : ""}.`);
+    }
     lines.push("", "See you next week! 🎶");
     return lines.join("\n");
   }
