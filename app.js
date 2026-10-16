@@ -259,12 +259,31 @@
     if (e.attendance === "excused") lines.push("🙏 Excused from class this week");
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
     if (e.practice?.trim()) lines.push(`🏠 Practice at home: ${e.practice.trim()}`);
+    lines.push(...missedReport(id, month));
     const f = feeEntry(month, id);
     const status = f.status || "unpaid";
     if (status === "unpaid") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are still due.`);
     if (status === "partial") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are partly paid${Number(f.amount) ? ` (${f.amount} received)` : ""}.`);
     lines.push("", "See you next week! 🎶");
     return lines.join("\n");
+  }
+
+  // Missed classes this month (with dates) plus the running total
+  function missedReport(id, month) {
+    const monthName = parseKey(month).toLocaleDateString(undefined, { month: "long" });
+    const dates = Object.keys(data.weeks)
+      .filter((w) => w.slice(0, 7) === month && ["absent", "excused"].includes(data.weeks[w][id]?.attendance))
+      .sort()
+      .map((w) => parseKey(w).toLocaleDateString(undefined, { month: "short", day: "numeric" }) + (data.weeks[w][id].attendance === "excused" ? " (excused)" : ""));
+    const total = missedCount(id).missed;
+    if (!dates.length) {
+      return [`📅 No missed classes in ${monthName} 🌟${total ? ` (${total} missed in total)` : ""}`];
+    }
+    return [
+      `📅 Missed classes in ${monthName}: ${dates.length}`,
+      ...dates.map((d) => `   • Week of ${d}`),
+      `   Total missed so far: ${total}`,
+    ];
   }
 
   const phoneOf = (contact) => {
