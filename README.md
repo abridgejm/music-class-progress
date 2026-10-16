@@ -9,7 +9,7 @@ A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 - **Songs & skills**: each kid's songs and skills, marked Learning → Got it → Performance-ready
 - **Fees**: monthly status (Paid / Partial / Unpaid), amount, and date paid
 
-Kids are split into **Wednesday** and **Friday** batches (switch at the top, or pick **All**).
+Kids are split into weekly **batches** (Wednesday and Friday to start). Add future batches with a day, time, and start date under **Students → Batches**, and switch between them at the top.
 
 Click any kid's name to see their full history.
 

@@ -23,7 +23,11 @@
 
   // ---------- Storage ----------
   let storageOk = true;
-  const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, settings: {}, lastBackup: null });
+  const defaultBatches = () => [
+    { id: "wed", name: "Wednesday", day: 2, startTime: "", endTime: "", startDate: "", color: 0 },
+    { id: "fri", name: "Friday", day: 4, startTime: "", endTime: "", startDate: "", color: 1 },
+  ];
+  const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, settings: {}, batches: defaultBatches(), lastBackup: null });
   const DEFAULT_SETTINGS = { className: "Olympia Music Class Tracker", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶", countryCode: "" };
   const setting = (k) => (data.settings?.[k] || "").trim() || DEFAULT_SETTINGS[k];
 
@@ -58,6 +62,7 @@
       weeks: d.weeks && typeof d.weeks === "object" ? d.weeks : {},
       fees: d.fees && typeof d.fees === "object" ? d.fees : {},
       songs: d.songs && typeof d.songs === "object" ? d.songs : {},
+      batches: Array.isArray(d.batches) ? d.batches.filter((b) => b && b.id && typeof b.name === "string") : defaultBatches(),
       settings: d.settings && typeof d.settings === "object" ? d.settings : {},
       lastBackup: d.lastBackup || null,
     };
@@ -97,11 +102,26 @@
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-  const BATCHES = [
-    { id: "wed", name: "Wednesday", short: "Wed", offset: 2 },
-    { id: "fri", name: "Friday", short: "Fri", offset: 4 },
-  ];
-  const batchOf = (s) => BATCHES.find((b) => b.id === s?.batch) || null;
+  // Batches repeat weekly on their day (0 = Monday … 6 = Sunday) from their start date
+  const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const BATCH_COLORS = 6;
+  const allBatches = () => data.batches;
+  const batchById = (id) => data.batches.find((b) => b.id === id) || null;
+  const batchOf = (s) => batchById(s?.batch);
+  // 3-letter label (e.g. "Wed"), or the full name when two batches would look the same
+  const shortName = (b) => {
+    const s = b.name.slice(0, 3);
+    const clash = data.batches.some((o) => o !== b && o.name.slice(0, 3).toLowerCase() === s.toLowerCase());
+    return clash || b.name.length <= 4 ? b.name : s;
+  };
+  const batchStyle = (b) => `--c: var(--b${b.color % BATCH_COLORS}); --cs: var(--b${b.color % BATCH_COLORS}-soft)`;
+  const hasStarted = (b, date) => !b.startDate || dateKey(date) >= b.startDate;
+  const fmtTime = (t) => {
+    if (!t) return "";
+    const [h, m] = t.split(":").map(Number);
+    return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  };
+  const timeText = (b) => (b?.startTime ? `${fmtTime(b.startTime)}${b.endTime ? `–${fmtTime(b.endTime)}` : ""}` : "");
   let currentBatch = "wed";
   try { currentBatch = sessionStorage.getItem("musicClass.batch") || currentBatch; } catch {}
   // Kids show only in their own batch; kids without one appear under All
@@ -110,7 +130,7 @@
   const activeStudents = () =>
     data.students.filter((s) => !s.archived && inBatch(s)).sort((a, b) => a.name.localeCompare(b.name));
   // The actual class day within a Monday-keyed week
-  const classDay = (week, batch) => addDays(parseKey(week), batch ? batch.offset : 0);
+  const classDay = (week, batch) => addDays(parseKey(week), batch ? batch.day : 0);
   const studentById = (id) => data.students.find((s) => s.id === id);
 
   function weekEntry(week, id, create = false) {
@@ -197,8 +217,11 @@
     const monday = parseKey(currentWeek);
     const month = monthKeyOf(monday);
     $("#weekLabel").textContent = `Week of ${fmtDay(monday)}`;
-    const batch = BATCHES.find((b) => b.id === currentBatch);
-    $("#classDate").textContent = batch ? `${batch.name} class · ${fmtDay(classDay(currentWeek, batch))}` : "Both batches";
+    const batch = batchById(currentBatch);
+    const cd = batch && classDay(currentWeek, batch);
+    $("#classDate").textContent = !batch ? "All batches"
+      : hasStarted(batch, cd) ? `${batch.name} class · ${fmtDay(cd)}${timeText(batch) ? ` · ${timeText(batch)}` : ""}`
+      : `${batch.name} batch starts ${fmtDay(parseKey(batch.startDate))}`;
     const kids = activeStudents();
     $("#weekEmpty").hidden = kids.length > 0;
     $("#weekRows").closest(".table-scroll").hidden = kids.length === 0;
@@ -305,7 +328,7 @@
     const month = monthKeyOf(monday);
     const e = weekEntry(currentWeek, id);
     const b = batchOf(s);
-    const when = b ? `${b.name}'s class on ${fmtDay(classDay(currentWeek, b))}` : `the week of ${fmtDay(monday)}`;
+    const when = b ? `${b.name}'s class on ${fmtDay(classDay(currentWeek, b))}${timeText(b) ? ` (${timeText(b)})` : ""}` : `the week of ${fmtDay(monday)}`;
     const lines = [`${setting("greeting")} Here's ${s.name}'s singing update for ${when} 🎤`, ""];
     if (e.attendance === "present") lines.push("✅ Attended class");
     if (e.attendance === "absent") lines.push("❌ Missed class this week");
@@ -339,7 +362,7 @@
       .map((w) => {
         const b = batchOf(studentById(id));
         const d = classDay(w, b).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        return b ? `${b.short}, ${d}` : `Week of ${d}`;
+        return b ? `${shortName(b)}, ${d}` : `Week of ${d}`;
       });
     const total = missedCount(id).missed;
     if (!dates.length) {
@@ -379,7 +402,7 @@
   function emailUpdate(id) {
     const s = studentById(id);
     const b = batchOf(s);
-    const when = b ? `${b.short}, ${fmtDay(classDay(currentWeek, b))}` : `week of ${fmtDay(parseKey(currentWeek))}`;
+    const when = b ? `${shortName(b)}, ${fmtDay(classDay(currentWeek, b))}` : `week of ${fmtDay(parseKey(currentWeek))}`;
     const subject = `${s.name}'s singing update (${when})`;
     const to = (s.email || "").trim();
     if (!to) toast(`No parent email saved for ${s.name}. Add it on the Students tab`);
@@ -425,7 +448,8 @@
     const first = parseKey(calMonth);
     $("#calMonthLabel").textContent = fmtMonth(calMonth);
     const todayKey = dateKey(new Date());
-    const batches = BATCHES.filter((b) => currentBatch === "all" || b.id === currentBatch);
+    const batches = allBatches().filter((b) => currentBatch === "all" || b.id === currentBatch);
+    $("#calLegend").innerHTML = batches.map((b) => `<span><i class="dot" style="${batchStyle(b)}"></i>${esc(b.name)}${timeText(b) ? ` · ${timeText(b)}` : ""}${b.startDate && b.startDate > todayKey ? ` (from ${fmtDay(parseKey(b.startDate))})` : ""}</span>`).join("") + `<span>💳 Fee reminder week</span>`;
     const start = mondayOf(first);
     const cells = [];
     let classes = 0, marked = 0;
@@ -436,7 +460,7 @@
       const key = dateKey(day);
       const week = dateKey(mondayOf(day));
       const inMonth = day.getMonth() === first.getMonth();
-      const chips = batches.filter((b) => classDay(week, b).getDate() === day.getDate() && classDay(week, b).getMonth() === day.getMonth()).map((b) => {
+      const chips = batches.filter((b) => dateKey(classDay(week, b)) === key && hasStarted(b, day)).map((b) => {
         const sum = classSummary(week, b);
         if (inMonth) { classes++; if (sum.present + sum.absent) marked++; }
         const past = key < todayKey;
@@ -444,8 +468,9 @@
           ? `<span class="cal-att">✅ ${sum.present}${sum.absent ? ` · ❌ ${sum.absent}` : ""}</span>`
           : `<span class="cal-att muted">${past ? "Not marked" : `${sum.kids} kid${sum.kids === 1 ? "" : "s"}`}</span>`;
         const fee = isLastWeekOfMonth(week) ? `<span class="cal-fee" title="Fee reminders go out this week">💳</span>` : "";
-        return `<button type="button" class="cal-class ${b.id}" data-week="${week}" data-batch="${b.id}" aria-label="${b.name} class on ${fmtDay(day)}">
-          <span class="cal-batch">${b.short}<span class="wide-only"> batch</span> ${fee}</span>
+        return `<button type="button" class="cal-class" style="${batchStyle(b)}" data-week="${week}" data-batch="${b.id}" aria-label="${esc(b.name)} class on ${fmtDay(day)}">
+          <span class="cal-batch">${esc(shortName(b))}<span class="wide-only">${shortName(b) === b.name ? "" : esc(b.name.slice(3))}</span> ${fee}</span>
+          ${timeText(b) ? `<span class="cal-time wide-only">${fmtTime(b.startTime)}</span>` : ""}
           ${status}
           ${sum.lesson ? `<span class="cal-lesson">${esc(sum.lesson)}${sum.moreLessons ? " +" : ""}</span>` : ""}
         </button>`;
@@ -549,7 +574,7 @@
       <tr data-id="${s.id}" class="${s.archived ? "archived" : ""} ${batchOf(s) ? "" : "needs-batch"}">
         <td><input data-student="name" value="${esc(s.name)}" aria-label="Name"></td>
         <td><div class="att batch-toggle" role="group" aria-label="Batch for ${esc(s.name)}">
-          ${BATCHES.map((b) => `<button type="button" data-set-batch="${b.id}" aria-pressed="${s.batch === b.id}">${b.short}</button>`).join("")}
+          ${allBatches().map((b) => `<button type="button" data-set-batch="${b.id}" aria-pressed="${s.batch === b.id}">${esc(shortName(b))}</button>`).join("")}
         </div></td>
         <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent phone"></td>
         <td><input data-student="email" type="email" value="${esc(s.email)}" aria-label="Parent email"></td>
@@ -564,8 +589,61 @@
     $("#studentRows").innerHTML = !all.length
       ? `<tr><td colspan="6" class="empty">No kids in this batch yet. Add one above.</td></tr>`
       : currentBatch === "all"
-        ? group("⚠️ Needs a batch", all.filter((s) => !batchOf(s))) + BATCHES.map((b) => group(`${b.name} batch`, all.filter((s) => s.batch === b.id))).join("")
+        ? group("⚠️ Needs a batch", all.filter((s) => !batchOf(s))) + allBatches().map((b) => group(`${esc(b.name)} batch`, all.filter((s) => s.batch === b.id))).join("")
         : all.map(rowHtml).join("");
+  }
+
+  // ---------- Batch manager ----------
+  const dayOptions = (sel) => DAY_NAMES.map((d, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>${d}</option>`).join("");
+
+  function renderBatches() {
+    const todayKey = dateKey(new Date());
+    $("#batchRows").innerHTML = allBatches().length ? allBatches().map((b) => {
+      const kids = data.students.filter((s) => !s.archived && s.batch === b.id).length;
+      const upcoming = b.startDate && b.startDate > todayKey;
+      return `<tr data-batch-id="${b.id}">
+        <td data-label="Batch"><span class="batch-name"><i class="dot" style="${batchStyle(b)}"></i><input data-batch-field="name" value="${esc(b.name)}" aria-label="Batch name"></span>
+          ${upcoming ? `<span class="badge partial">Starts ${esc(fmtDay(parseKey(b.startDate)))}</span>` : ""}</td>
+        <td data-label="Day"><select data-batch-field="day" aria-label="Day">${dayOptions(b.day)}</select></td>
+        <td data-label="Time"><div class="time-range"><input type="time" data-batch-field="startTime" value="${esc(b.startTime)}" aria-label="Start time"><span>to</span><input type="time" data-batch-field="endTime" value="${esc(b.endTime)}" aria-label="End time"></div></td>
+        <td data-label="Starts on"><input type="date" data-batch-field="startDate" value="${esc(b.startDate)}" aria-label="Starts on"></td>
+        <td class="kid-sub">${kids} kid${kids === 1 ? "" : "s"}</td>
+        <td><button type="button" class="btn small ghost danger" data-action="remove-batch">Remove</button></td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="6" class="empty">No batches yet. Add one below.</td></tr>`;
+    const f = $("#addBatch");
+    if (!f.dataset.ready) { f.day.innerHTML = dayOptions(5); f.dataset.ready = "1"; }
+  }
+
+  function addBatch(form) {
+    const day = Number(form.day.value);
+    const used = new Set(allBatches().map((b) => b.color));
+    let color = 0;
+    while (used.has(color) && color < BATCH_COLORS - 1) color++;
+    const b = {
+      id: uid(), name: form.name.value.trim() || DAY_NAMES[day], day,
+      startTime: form.startTime.value, endTime: form.endTime.value, startDate: form.startDate.value, color,
+    };
+    data.batches.push(b);
+    save();
+    form.reset();
+    form.day.value = "5";
+    render();
+    toast(`${b.name} batch added${b.startDate ? `, starting ${fmtDay(parseKey(b.startDate))}` : ""}`);
+  }
+
+  function removeBatch(id) {
+    const b = batchById(id);
+    const kids = data.students.filter((s) => s.batch === id);
+    const msg = kids.length
+      ? `Remove the ${b.name} batch? Its ${kids.length} kid${kids.length === 1 ? "" : "s"} will move to "Needs a batch". Their history is kept.`
+      : `Remove the ${b.name} batch?`;
+    if (!confirm(msg)) return;
+    data.batches = data.batches.filter((x) => x.id !== id);
+    kids.forEach((s) => (s.batch = ""));
+    save();
+    render();
+    toast(`${b.name} batch removed`);
   }
 
   function deleteStudent(id) {
@@ -677,10 +755,14 @@
   }
 
   function renderBatchPicker() {
-    document.querySelectorAll("#batchPicker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.batch === currentBatch)));
-    const batch = BATCHES.find((b) => b.id === currentBatch);
-    if (batch) $("#addStudent").batch.value = batch.id;
-    $("#addAllLabel").textContent = batch ? `Add for the whole ${batch.name} batch` : "Add for both batches";
+    if (currentBatch !== "all" && !batchById(currentBatch)) currentBatch = allBatches()[0]?.id || "all";
+    $("#batchPicker").innerHTML = [...allBatches().map((b) => ({ id: b.id, label: b.name })), { id: "all", label: "All" }]
+      .map((b) => `<button type="button" data-batch="${b.id}" aria-pressed="${b.id === currentBatch}">${esc(b.label)}</button>`).join("");
+    const sel = $("#addStudent").batch;
+    sel.innerHTML = allBatches().map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("") || `<option value="">No batches yet</option>`;
+    const batch = batchById(currentBatch);
+    if (batch) sel.value = batch.id;
+    $("#addAllLabel").textContent = batch ? `Add for the whole ${batch.name} batch` : "Add for all batches";
   }
 
   function render() {
@@ -689,7 +771,7 @@
     renderBanners();
     if (currentTab === "week") renderWeek();
     if (currentTab === "fees") renderFees();
-    if (currentTab === "students") renderStudents();
+    if (currentTab === "students") { renderBatches(); renderStudents(); }
     if (currentTab === "songs") renderSongs();
     if (currentTab === "calendar") renderCalendar();
   }
@@ -920,6 +1002,24 @@
     ev.target.value = "";
   });
   $("#closeHistory").addEventListener("click", () => $("#historyDialog").close());
+  $("#addBatch").addEventListener("submit", (ev) => { ev.preventDefault(); addBatch(ev.target); });
+  $("#batchRows").addEventListener("change", (ev) => {
+    const field = ev.target.dataset.batchField;
+    const row = ev.target.closest("tr[data-batch-id]");
+    if (!field || !row) return;
+    const b = batchById(row.dataset.batchId);
+    let value = ev.target.value;
+    if (field === "name") { value = value.trim(); if (!value) { ev.target.value = b.name; return; } }
+    if (field === "day") value = Number(value);
+    b[field] = value;
+    save();
+    render();
+    toast("Batch updated");
+  });
+  $("#batchRows").addEventListener("click", (ev) => {
+    const row = ev.target.closest("tr[data-batch-id]");
+    if (row && ev.target.closest('[data-action="remove-batch"]')) removeBatch(row.dataset.batchId);
+  });
   $("#batchPicker").addEventListener("click", (ev) => {
     const btn = ev.target.closest("[data-batch]");
     if (!btn) return;

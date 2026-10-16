@@ -6,7 +6,7 @@
   <title>Olympia Music Class Tracker</title>
   <meta name="description" content="A teacher's weekly tracker for attendance, singing lessons, practice, and monthly fees.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body>
   <header class="site-header">
@@ -30,9 +30,6 @@
     <div class="wrap batch-bar no-print">
       <span class="batch-label">Batch</span>
       <div class="att" role="group" aria-label="Choose batch" id="batchPicker">
-        <button type="button" data-batch="wed" aria-pressed="false">Wednesday</button>
-        <button type="button" data-batch="fri" aria-pressed="false">Friday</button>
-        <button type="button" data-batch="all" aria-pressed="false">All</button>
       </div>
     </div>
   </header>
@@ -83,11 +80,7 @@
           <button type="button" class="btn icon no-print" id="nextCalMonth" aria-label="Next month">▶</button>
           <button type="button" class="btn ghost small no-print" id="thisCalMonth">Today</button>
         </div>
-        <div class="cal-legend">
-          <span><i class="dot wed"></i>Wednesday batch</span>
-          <span><i class="dot fri"></i>Friday batch</span>
-          <span>💳 Fee reminder week</span>
-        </div>
+        <div class="cal-legend" id="calLegend"></div>
       </div>
       <div class="summary" id="calSummary"></div>
       <div class="calendar" id="calendar" role="grid" aria-label="Class calendar"></div>
@@ -143,13 +136,33 @@
 
     <!-- Students -->
     <section id="tab-students" class="panel" hidden>
+      <details class="card batches-card" id="batchesCard">
+        <summary><h2>🗓️ Batches</h2><span class="kid-sub">Classes repeat every week from their start date</span></summary>
+        <div class="table-scroll">
+          <table class="grid batch-table">
+            <thead><tr><th>Batch</th><th>Day</th><th>Time</th><th>Starts on</th><th>Kids</th><th></th></tr></thead>
+            <tbody id="batchRows"></tbody>
+          </table>
+        </div>
+        <form id="addBatch" class="add-form">
+          <h3>Add a batch</h3>
+          <div class="form-row">
+            <label>Name<input name="name" autocomplete="off" placeholder="e.g. Saturday Juniors"></label>
+            <label>Day<select name="day"></select></label>
+            <label>Start time<input name="startTime" type="time"></label>
+            <label>End time<input name="endTime" type="time"></label>
+            <label>Starts on<input name="startDate" type="date"></label>
+            <button type="submit" class="btn primary">Add batch</button>
+          </div>
+        </form>
+      </details>
       <form id="addStudent" class="card add-form">
         <h2>Add a kid</h2>
         <div class="form-row">
           <label>Name<input name="name" required autocomplete="off" placeholder="e.g. Maya"></label>
           <label>Parent phone<input name="contact" type="tel" autocomplete="off" placeholder="For Messages"></label>
           <label>Parent email<input name="email" type="email" autocomplete="off" placeholder="For email updates"></label>
-          <label>Batch<select name="batch"><option value="wed">Wednesday</option><option value="fri">Friday</option></select></label>
+          <label>Batch<select name="batch"></select></label>
           <button type="submit" class="btn primary">Add</button>
         </div>
       </form>
@@ -202,6 +215,6 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

@@ -275,3 +275,48 @@ tr.group-row td { background: var(--surface-2); font-weight: 700; font-size: .85
   .wide-only { display: none; }
   .cal-class { gap: 1px; }
 }
+
+/* Batch colours (one per batch, assigned in order) */
+:root {
+  --b0: #2f7fd1; --b0-soft: #e1eefb; --b1: #c2588a; --b1-soft: #fbe6f0; --b2: #2e8b57; --b2-soft: #e0f3e8;
+  --b3: #c46a12; --b3-soft: #fcebd9; --b4: #6b4fd8; --b4-soft: #ece7fd; --b5: #138a8a; --b5-soft: #dcf2f2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --b0: #7db6f2; --b0-soft: #1d3248; --b1: #f08fbd; --b1-soft: #45233a; --b2: #6fd39b; --b2-soft: #1c3a2a;
+    --b3: #f2a85c; --b3-soft: #43301b; --b4: #9d86ff; --b4-soft: #2f2852; --b5: #5fd0d0; --b5-soft: #173a3a;
+  }
+}
+:root[data-theme="dark"] {
+  --b0: #7db6f2; --b0-soft: #1d3248; --b1: #f08fbd; --b1-soft: #45233a; --b2: #6fd39b; --b2-soft: #1c3a2a;
+  --b3: #f2a85c; --b3-soft: #43301b; --b4: #9d86ff; --b4-soft: #2f2852; --b5: #5fd0d0; --b5-soft: #173a3a;
+}
+.dot { background: var(--c, var(--muted)); flex: none; }
+.cal-class { background: var(--cs); border-color: var(--c); }
+.cal-time { font-size: .7rem; color: var(--muted); }
+
+/* Batches card */
+.batches-card summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; cursor: pointer; list-style: none; }
+.batches-card summary::-webkit-details-marker { display: none; }
+.batches-card summary h2::after { content: " ▾"; color: var(--muted); font-size: .9rem; }
+.batches-card[open] summary { margin-bottom: 12px; }
+.batches-card .table-scroll { box-shadow: none; margin-bottom: 14px; }
+.batches-card h3 { font-size: 1rem; margin: 0 0 8px; }
+.batch-table { min-width: 720px; }
+.batch-name { display: flex; align-items: center; gap: 8px; }
+.time-range { display: flex; align-items: center; gap: 6px; }
+.time-range span { color: var(--muted); font-size: .85rem; }
+.time-range input { width: 120px; }
+.batch-name input { min-width: 140px; }
+.batch-table select { min-width: 130px; }
+@media (max-width: 600px) {
+  .batch-table { min-width: 0; }
+  .batch-table thead { display: none; }
+  .batch-table, .batch-table tbody, .batch-table tr, .batch-table td { display: block; width: 100%; }
+  .batch-table tr { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .batch-table tr:last-child { border-bottom: 0; }
+  .batch-table td { border: 0; padding: 4px 12px; }
+  .batch-table td[data-label]::before { content: attr(data-label); display: block; font-size: .75rem; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+  .batch-table select, .batch-name input { width: 100%; }
+  .time-range input { width: auto; flex: 1; min-width: 0; }
+}
