@@ -1,4 +1,4 @@
-# 🎤 Singing Class Progress
+# 🎤 Olympia Music Class Tracker
 
 A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 
@@ -8,6 +8,8 @@ A simple weekly tracker for a vocal (singing) teacher. For each kid it tracks:
 - **Missed classes**: counted automatically, this month and in total
 - **Songs & skills**: each kid's songs and skills, marked Learning → Got it → Performance-ready
 - **Fees**: monthly status (Paid / Partial / Unpaid), amount, and date paid
+
+Kids are split into **Wednesday** and **Friday** batches (switch at the top, or pick **All**).
 
 Click any kid's name to see their full history.
 

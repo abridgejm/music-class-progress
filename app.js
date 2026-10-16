@@ -1,4 +1,4 @@
-// Singing Class Progress: all data stays in this browser (localStorage).
+// Olympia Music Class Tracker: all data stays in this browser (localStorage).
 (() => {
   "use strict";
 
@@ -19,7 +19,7 @@
   // ---------- Storage ----------
   let storageOk = true;
   const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, settings: {}, lastBackup: null });
-  const DEFAULT_SETTINGS = { className: "Singing Class Progress", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶" };
+  const DEFAULT_SETTINGS = { className: "Olympia Music Class Tracker", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶" };
   const setting = (k) => (data.settings?.[k] || "").trim() || DEFAULT_SETTINGS[k];
 
   function load() {
@@ -91,8 +91,19 @@
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const BATCHES = [
+    { id: "wed", name: "Wednesday", short: "Wed", offset: 2 },
+    { id: "fri", name: "Friday", short: "Fri", offset: 4 },
+  ];
+  const batchOf = (s) => BATCHES.find((b) => b.id === s?.batch) || null;
+  let currentBatch = "wed";
+  try { currentBatch = sessionStorage.getItem("musicClass.batch") || currentBatch; } catch {}
+  // Kids without a batch yet show in every view until one is picked
+  const inBatch = (s) => currentBatch === "all" || !s.batch || s.batch === currentBatch;
   const activeStudents = () =>
-    data.students.filter((s) => !s.archived).sort((a, b) => a.name.localeCompare(b.name));
+    data.students.filter((s) => !s.archived && inBatch(s)).sort((a, b) => a.name.localeCompare(b.name));
+  // The actual class day within a Monday-keyed week
+  const classDay = (week, batch) => addDays(parseKey(week), batch ? batch.offset : 0);
   const studentById = (id) => data.students.find((s) => s.id === id);
 
   function weekEntry(week, id, create = false) {
@@ -174,6 +185,8 @@
     const monday = parseKey(currentWeek);
     const month = monthKeyOf(monday);
     $("#weekLabel").textContent = `Week of ${fmtDay(monday)}`;
+    const batch = BATCHES.find((b) => b.id === currentBatch);
+    $("#classDate").textContent = batch ? `${batch.name} class · ${fmtDay(classDay(currentWeek, batch))}` : "Both batches";
     const kids = activeStudents();
     $("#weekEmpty").hidden = kids.length > 0;
     $("#weekRows").closest(".table-scroll").hidden = kids.length === 0;
@@ -194,7 +207,10 @@
               ${ATTENDANCE.map((a) => `<button type="button" data-v="${a.v}" aria-pressed="${e.attendance === a.v}">${a.label}</button>`).join("")}
             </div>
           </td>
-          <td><textarea data-field="lessonLearnt" rows="2" placeholder="e.g. Breathing, a new song verse">${esc(e.lessonLearnt)}</textarea></td>
+          <td>
+            <textarea data-field="lessonLearnt" rows="2" placeholder="e.g. Breathing, a new song verse">${esc(e.lessonLearnt)}</textarea>
+            <label class="same-lesson no-print"><input type="checkbox" data-same-lesson ${e.sameLesson ? "checked" : ""}> Same lesson</label>
+          </td>
           <td><textarea data-field="practice" rows="2" placeholder="e.g. Warm-ups 10 min daily">${esc(e.practice)}</textarea></td>
           <td><textarea data-field="notes" rows="2" placeholder="Optional">${esc(e.notes)}</textarea></td>
           <td class="missed ${t.missed ? "has" : ""}">
@@ -202,6 +218,8 @@
           </td>
         </tr>`;
     }).join("");
+    const boxes = kids.map((k) => !!weekEntry(currentWeek, k.id).sameLesson);
+    $("#sameLessonAll").checked = boxes.length > 0 && boxes.every(Boolean);
     renderWeekSummary();
   }
 
@@ -244,11 +262,11 @@
 
   function exportCsv() {
     const month = monthKeyOf(parseKey(currentWeek));
-    const rows = [["Week of", "Kid", "Attendance", "Lesson learnt", "Practice lesson", "Notes", "Missed this month", "Missed total", "Fee status"]];
+    const rows = [["Week of", "Kid", "Batch", "Attendance", "Lesson learnt", "Practice lesson", "Notes", "Missed this month", "Missed total", "Fee status"]];
     activeStudents().forEach((s) => {
       const e = weekEntry(currentWeek, s.id);
       rows.push([
-        currentWeek, s.name, e.attendance || "", e.lessonLearnt, e.practice, e.notes,
+        currentWeek, s.name, batchOf(s)?.name || "", e.attendance || "", e.lessonLearnt, e.practice, e.notes,
         missedCount(s.id, month).missed, missedCount(s.id).missed,
         FEE_STATUS[feeEntry(month, s.id).status || "unpaid"],
       ]);
@@ -266,7 +284,9 @@
     const monday = parseKey(currentWeek);
     const month = monthKeyOf(monday);
     const e = weekEntry(currentWeek, id);
-    const lines = [`${setting("greeting")} Here's ${s.name}'s singing update for the week of ${fmtDay(monday)} 🎤`, ""];
+    const b = batchOf(s);
+    const when = b ? `${b.name}'s class on ${fmtDay(classDay(currentWeek, b))}` : `the week of ${fmtDay(monday)}`;
+    const lines = [`${setting("greeting")} Here's ${s.name}'s singing update for ${when} 🎤`, ""];
     if (e.attendance === "present") lines.push("✅ Attended class");
     if (e.attendance === "absent") lines.push("❌ Missed class this week");
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
@@ -296,14 +316,18 @@
     const dates = Object.keys(data.weeks)
       .filter((w) => w.slice(0, 7) === month && data.weeks[w][id]?.attendance === "absent")
       .sort()
-      .map((w) => parseKey(w).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+      .map((w) => {
+        const b = batchOf(studentById(id));
+        const d = classDay(w, b).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        return b ? `${b.short}, ${d}` : `Week of ${d}`;
+      });
     const total = missedCount(id).missed;
     if (!dates.length) {
       return [`📅 No missed classes in ${monthName} 🌟${total ? ` (${total} missed in total)` : ""}`];
     }
     return [
       `📅 Missed classes in ${monthName}: ${dates.length}`,
-      ...dates.map((d) => `   • Week of ${d}`),
+      ...dates.map((d) => `   • ${d}`),
       `   Total missed so far: ${total}`,
     ];
   }
@@ -421,11 +445,15 @@
 
   // ---------- Students ----------
   function renderStudents() {
-    const all = [...data.students].sort((a, b) => (a.archived - b.archived) || a.name.localeCompare(b.name));
+    const all = data.students.filter(inBatch).sort((a, b) => (a.archived - b.archived) || a.name.localeCompare(b.name));
     $("#studentRows").innerHTML = all.length ? all.map((s) => `
       <tr data-id="${s.id}" class="${s.archived ? "archived" : ""}">
         <td><input data-student="name" value="${esc(s.name)}" aria-label="Name"></td>
         <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent phone"></td>
+        <td><select data-student="batch" aria-label="Batch">
+          ${s.batch ? "" : `<option value="" selected>Pick a batch</option>`}
+          ${BATCHES.map((b) => `<option value="${b.id}" ${s.batch === b.id ? "selected" : ""}>${b.name}</option>`).join("")}
+        </select></td>
         <td class="missed">${missedCount(s.id).missed}</td>
         <td><div class="row-actions">
           <button type="button" class="btn small ghost" data-action="history">History</button>
@@ -433,7 +461,7 @@
           <button type="button" class="btn small ghost danger" data-action="delete">Delete</button>
         </div></td>
       </tr>`).join("")
-      : `<tr><td colspan="4" class="empty">No kids yet. Add your first one above.</td></tr>`;
+      : `<tr><td colspan="5" class="empty">No kids in this batch yet. Add one above.</td></tr>`;
   }
 
   function deleteStudent(id) {
@@ -457,7 +485,7 @@
     const t = missedCount(id);
     const attLabel = (a) => (ATTENDANCE.find((x) => x.v === a)?.label || "—");
 
-    $("#historyTitle").textContent = s.name;
+    $("#historyTitle").textContent = batchOf(s) ? `${s.name} · ${batchOf(s).name} batch` : s.name;
     $("#historyBody").innerHTML = `
       <div class="summary">
         <span class="stat"><b>${weeks.filter((w) => data.weeks[w][id].attendance === "present").length}</b>classes attended</span>
@@ -543,8 +571,16 @@
     $("#settingsDialog").showModal();
   }
 
+  function renderBatchPicker() {
+    document.querySelectorAll("#batchPicker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.batch === currentBatch)));
+    const batch = BATCHES.find((b) => b.id === currentBatch);
+    if (batch) $("#addStudent").batch.value = batch.id;
+    $("#addAllLabel").textContent = batch ? `Add for the whole ${batch.name} batch` : "Add for both batches";
+  }
+
   function render() {
     renderSettings();
+    renderBatchPicker();
     renderBanners();
     if (currentTab === "week") renderWeek();
     if (currentTab === "fees") renderFees();
@@ -588,7 +624,54 @@
     const row = ev.target.closest("tr[data-id]");
     if (!field || !row) return;
     weekEntry(currentWeek, row.dataset.id, true)[field] = ev.target.value;
+    // Typing in a "Same lesson" row updates every other ticked row too
+    if (field === "lessonLearnt" && weekEntry(currentWeek, row.dataset.id).sameLesson) {
+      sameLessonRows().forEach((r) => {
+        if (r === row) return;
+        r.querySelector('[data-field="lessonLearnt"]').value = ev.target.value;
+        weekEntry(currentWeek, r.dataset.id, true).lessonLearnt = ev.target.value;
+      });
+    }
     save();
+  });
+
+  // ---------- Same lesson ----------
+  const sameLessonRows = () =>
+    [...document.querySelectorAll("#weekRows tr[data-id]")].filter((r) => r.querySelector("[data-same-lesson]").checked);
+
+  function syncSameLesson(preferRow = null) {
+    const rows = sameLessonRows();
+    const lessonOf = (r) => r.querySelector('[data-field="lessonLearnt"]').value;
+    // Use the lesson from another ticked row first; otherwise keep the one just ticked
+    const source = rows.find((r) => r !== preferRow && lessonOf(r).trim()) || (preferRow && lessonOf(preferRow).trim() ? preferRow : null);
+    if (source) {
+      const text = lessonOf(source);
+      rows.forEach((r) => {
+        r.querySelector('[data-field="lessonLearnt"]').value = text;
+        weekEntry(currentWeek, r.dataset.id, true).lessonLearnt = text;
+      });
+    }
+    const all = [...document.querySelectorAll("#weekRows [data-same-lesson]")];
+    $("#sameLessonAll").checked = all.length > 0 && all.every((c) => c.checked);
+    save();
+  }
+
+  $("#weekRows").addEventListener("change", (ev) => {
+    if (!ev.target.matches("[data-same-lesson]")) return;
+    const row = ev.target.closest("tr[data-id]");
+    weekEntry(currentWeek, row.dataset.id, true).sameLesson = ev.target.checked;
+    syncSameLesson(row);
+  });
+  $("#sameLessonAll").addEventListener("change", (ev) => {
+    const rows = [...document.querySelectorAll("#weekRows tr[data-id]")];
+    rows.forEach((r) => {
+      r.querySelector("[data-same-lesson]").checked = ev.target.checked;
+      weekEntry(currentWeek, r.dataset.id, true).sameLesson = ev.target.checked;
+    });
+    // Copy from the first kid who already has a lesson written
+    const first = rows.find((r) => r.querySelector('[data-field="lessonLearnt"]').value.trim());
+    if (ev.target.checked) syncSameLesson(first || null);
+    else save();
   });
 
   // Fees table
@@ -613,7 +696,7 @@
     const form = ev.target;
     const name = form.name.value.trim();
     if (!name) return;
-    data.students.push({ id: uid(), name, contact: form.contact.value.trim(), archived: false });
+    data.students.push({ id: uid(), name, contact: form.contact.value.trim(), batch: form.batch.value, archived: false });
     save();
     form.reset();
     form.name.focus();
@@ -630,6 +713,10 @@
     if (key === "name" && !value) { ev.target.value = s.name; return; }
     s[key] = value;
     save();
+    if (key === "batch") {
+      renderStudents();
+      toast(`${s.name} is in the ${batchOf(s).name} batch`);
+    }
   });
   $("#studentRows").addEventListener("click", (ev) => {
     const row = ev.target.closest("tr[data-id]");
@@ -695,6 +782,13 @@
     ev.target.value = "";
   });
   $("#closeHistory").addEventListener("click", () => $("#historyDialog").close());
+  $("#batchPicker").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-batch]");
+    if (!btn) return;
+    currentBatch = btn.dataset.batch;
+    try { sessionStorage.setItem("musicClass.batch", currentBatch); } catch {}
+    render();
+  });
   $("#openSettings").addEventListener("click", openSettings);
   $("#closeSettings").addEventListener("click", () => $("#settingsDialog").close());
   $("#settingsDialog").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });

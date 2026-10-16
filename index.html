@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Singing Class Progress</title>
+  <title>Olympia Music Class Tracker</title>
   <meta name="description" content="A teacher's weekly tracker for attendance, singing lessons, practice, and monthly fees.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="site-header">
     <div class="wrap header-inner">
-      <h1 id="className">🎤 Singing Class Progress</h1>
+      <h1 id="className">🎤 Olympia Music Class Tracker</h1>
       <div class="header-actions no-print">
         <button type="button" class="btn ghost" id="openSettings" aria-label="Settings">⚙️ Settings</button>
         <button type="button" class="btn ghost" id="downloadBackup">Download backup</button>
@@ -26,6 +26,14 @@
       <button type="button" role="tab" class="tab" data-tab="songs" aria-selected="false">Songs &amp; skills</button>
       <button type="button" role="tab" class="tab" data-tab="fees" aria-selected="false">Fees</button>
     </nav>
+    <div class="wrap batch-bar no-print">
+      <span class="batch-label">Batch</span>
+      <div class="att" role="group" aria-label="Choose batch" id="batchPicker">
+        <button type="button" data-batch="wed" aria-pressed="false">Wednesday</button>
+        <button type="button" data-batch="fri" aria-pressed="false">Friday</button>
+        <button type="button" data-batch="all" aria-pressed="false">All</button>
+      </div>
+    </div>
   </header>
 
   <main class="wrap">
@@ -36,7 +44,7 @@
       <div class="toolbar">
         <div class="picker">
           <button type="button" class="btn icon no-print" id="prevWeek" aria-label="Previous week">◀</button>
-          <h2 id="weekLabel">Week of</h2>
+          <div><h2 id="weekLabel">Week of</h2><div class="class-date" id="classDate"></div></div>
           <button type="button" class="btn icon no-print" id="nextWeek" aria-label="Next week">▶</button>
           <button type="button" class="btn ghost small no-print" id="thisWeek">Today</button>
         </div>
@@ -53,7 +61,7 @@
             <tr>
               <th>Kid</th>
               <th>Attendance</th>
-              <th>Lesson learnt</th>
+              <th>Lesson learnt <label class="same-all no-print"><input type="checkbox" id="sameLessonAll"> Same for all</label></th>
               <th>Practice lesson</th>
               <th>Notes</th>
               <th>Missed</th>
@@ -76,7 +84,7 @@
           <div class="form-row">
             <label>Type<select name="kind"><option value="song">Song</option><option value="skill">Skill</option></select></label>
             <label>Title<input name="title" required autocomplete="off" placeholder="e.g. Edelweiss, Breath control"></label>
-            <label class="check"><input type="checkbox" name="all"> Add for the whole class</label>
+            <label class="check"><input type="checkbox" name="all"> <span id="addAllLabel">Add for the whole class</span></label>
             <button type="submit" class="btn primary">Add</button>
           </div>
         </form>
@@ -119,13 +127,14 @@
         <div class="form-row">
           <label>Name<input name="name" required autocomplete="off" placeholder="e.g. Maya"></label>
           <label>Parent phone<input name="contact" type="tel" autocomplete="off" placeholder="For sharing updates in Messages"></label>
+          <label>Batch<select name="batch"><option value="wed">Wednesday</option><option value="fri">Friday</option></select></label>
           <button type="submit" class="btn primary">Add</button>
         </div>
       </form>
       <div class="table-scroll">
         <table class="grid student-table">
           <thead>
-            <tr><th>Name</th><th>Parent phone</th><th>Missed (total)</th><th></th></tr>
+            <tr><th>Name</th><th>Parent phone</th><th>Batch</th><th>Missed (total)</th><th></th></tr>
           </thead>
           <tbody id="studentRows"></tbody>
         </table>
@@ -141,7 +150,7 @@
       <button type="button" class="btn icon" id="closeSettings" aria-label="Close">✕</button>
     </div>
     <form id="settingsForm" class="settings-body">
-      <label>Class name<input name="className" autocomplete="off" placeholder="Singing Class Progress"></label>
+      <label>Class name<input name="className" autocomplete="off" placeholder="Olympia Music Class Tracker"></label>
       <label>Your name (shown at the end of parent messages)<input name="teacherName" autocomplete="off" placeholder="e.g. Ms. Jaya"></label>
       <label>Message greeting<input name="greeting" autocomplete="off" placeholder="Hi!"></label>
       <label>Message sign-off<input name="signOff" autocomplete="off" placeholder="See you next week! 🎶"></label>
@@ -170,6 +179,6 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

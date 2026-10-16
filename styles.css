@@ -215,3 +215,14 @@ label.check input { width: auto; }
 .code-edit h3 { margin: 0 0 4px; font-size: 1rem; }
 .code-edit p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; }
 .code-edit .btn { text-decoration: none; }
+
+/* Same lesson */
+.same-lesson, .same-all { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 600; color: var(--muted); margin-top: 4px; cursor: pointer; }
+.same-all { margin: 0 0 0 8px; text-transform: none; letter-spacing: 0; }
+.same-lesson input, .same-all input { width: auto; margin: 0; accent-color: var(--brand); }
+
+/* Batches */
+.batch-bar { display: flex; align-items: center; gap: 10px; padding-top: 8px; padding-bottom: 10px; border-top: 1px solid var(--border); }
+.batch-label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+#batchPicker button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.class-date { text-align: center; font-size: .85rem; font-weight: 600; color: var(--brand); }
