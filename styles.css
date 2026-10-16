@@ -232,3 +232,6 @@ tr.group-row td { background: var(--surface-2); font-weight: 700; font-size: .85
 .student-table td:first-child { min-width: 140px; }
 .student-table .row-actions { flex-wrap: nowrap; }
 .student-table td { vertical-align: middle; }
+.send-btns { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.send-btns .btn { padding: 4px 8px; font-size: .8rem; }
+.student-table { min-width: 760px; }

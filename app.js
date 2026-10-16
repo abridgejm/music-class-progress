@@ -24,7 +24,7 @@
   // ---------- Storage ----------
   let storageOk = true;
   const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, settings: {}, lastBackup: null });
-  const DEFAULT_SETTINGS = { className: "Olympia Music Class Tracker", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶" };
+  const DEFAULT_SETTINGS = { className: "Olympia Music Class Tracker", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶", countryCode: "" };
   const setting = (k) => (data.settings?.[k] || "").trim() || DEFAULT_SETTINGS[k];
 
   function load() {
@@ -211,7 +211,11 @@
           <td>
             <button type="button" class="kid-name" data-action="history">${esc(s.name)}</button>
             ${feeBadge(s.id, month)}
-            <button type="button" class="btn small ghost share-btn no-print" data-action="share" aria-label="Share ${esc(s.name)}'s update with their parent">💬 Share</button>
+            <div class="send-btns no-print">
+              <button type="button" class="btn small ghost" data-action="share" aria-label="Text ${esc(s.name)}'s update to their parent">💬 Messages</button>
+              <button type="button" class="btn small ghost" data-action="whatsapp" aria-label="Send ${esc(s.name)}'s update on WhatsApp">🟢 WhatsApp</button>
+              <button type="button" class="btn small ghost" data-action="email" aria-label="Email ${esc(s.name)}'s update to their parent">✉️ Email</button>
+            </div>
           </td>
           <td>
             <div class="att" role="group" aria-label="Attendance for ${esc(s.name)}">
@@ -352,6 +356,35 @@
     return digits.replace(/\D/g, "").length >= 7 ? digits : "";
   };
 
+  // WhatsApp needs the number with its country code (no +, spaces or leading 0)
+  function whatsappNumber(contact) {
+    const raw = String(contact || "").trim();
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length < 7) return "";
+    if (raw.startsWith("+")) return digits;
+    if (raw.startsWith("00")) return digits.slice(2);
+    const cc = setting("countryCode").replace(/\D/g, "");
+    return cc ? cc + digits.replace(/^0+/, "") : "";
+  }
+
+  function whatsappUpdate(id) {
+    const s = studentById(id);
+    const num = whatsappNumber(s.contact);
+    if (!num) toast(s.contact ? "Add your country code in ⚙️ Settings to open the parent's chat directly" : `No parent phone saved for ${s.name}. Pick the chat in WhatsApp`);
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(parentMessage(id))}`, "_blank", "noopener");
+  }
+
+  // Opens the teacher's email app with the update written; nothing is sent until they press Send
+  function emailUpdate(id) {
+    const s = studentById(id);
+    const b = batchOf(s);
+    const when = b ? `${b.short}, ${fmtDay(classDay(currentWeek, b))}` : `week of ${fmtDay(parseKey(currentWeek))}`;
+    const subject = `${s.name}'s singing update (${when})`;
+    const to = (s.email || "").trim();
+    if (!to) toast(`No parent email saved for ${s.name}. Add it on the Students tab`);
+    location.href = `mailto:${encodeURIComponent(to).replace(/%40/g, "@")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(parentMessage(id))}`;
+  }
+
   async function shareUpdate(id) {
     const s = studentById(id);
     const text = parentMessage(id);
@@ -468,6 +501,7 @@
           ${BATCHES.map((b) => `<button type="button" data-set-batch="${b.id}" aria-pressed="${s.batch === b.id}">${b.short}</button>`).join("")}
         </div></td>
         <td><input data-student="contact" value="${esc(s.contact)}" aria-label="Parent phone"></td>
+        <td><input data-student="email" type="email" value="${esc(s.email)}" aria-label="Parent email"></td>
         <td class="missed">${missedCount(s.id).missed}</td>
         <td><div class="row-actions">
           <button type="button" class="btn small ghost" data-action="history">History</button>
@@ -475,9 +509,9 @@
           <button type="button" class="btn small ghost danger" data-action="delete">Delete</button>
         </div></td>
       </tr>`;
-    const group = (title, kids) => kids.length ? `<tr class="group-row"><td colspan="5">${title} · ${kids.length} kid${kids.length === 1 ? "" : "s"}</td></tr>${kids.map(rowHtml).join("")}` : "";
+    const group = (title, kids) => kids.length ? `<tr class="group-row"><td colspan="6">${title} · ${kids.length} kid${kids.length === 1 ? "" : "s"}</td></tr>${kids.map(rowHtml).join("")}` : "";
     $("#studentRows").innerHTML = !all.length
-      ? `<tr><td colspan="5" class="empty">No kids in this batch yet. Add one above.</td></tr>`
+      ? `<tr><td colspan="6" class="empty">No kids in this batch yet. Add one above.</td></tr>`
       : currentBatch === "all"
         ? group("⚠️ Needs a batch", all.filter((s) => !batchOf(s))) + BATCHES.map((b) => group(`${b.name} batch`, all.filter((s) => s.batch === b.id))).join("")
         : all.map(rowHtml).join("");
@@ -509,7 +543,8 @@
       <div class="summary">
         <span class="stat"><b>${weeks.filter((w) => data.weeks[w][id].attendance === "present").length}</b>classes attended</span>
         <span class="stat"><b>${t.missed}</b>missed</span>
-        ${s.contact ? `<span class="stat">Parent: ${esc(s.contact)}</span>` : ""}
+        ${s.contact ? `<span class="stat">📱 ${esc(s.contact)}</span>` : ""}
+        ${s.email ? `<span class="stat">✉️ ${esc(s.email)}</span>` : ""}
       </div>
       <h3>Weekly progress</h3>
       ${weeks.length ? `<div class="table-scroll"><table class="grid">
@@ -636,6 +671,8 @@
     const id = row.dataset.id;
     if (ev.target.closest('[data-action="history"]')) return openHistory(id);
     if (ev.target.closest('[data-action="share"]')) return shareUpdate(id);
+    if (ev.target.closest('[data-action="email"]')) return emailUpdate(id);
+    if (ev.target.closest('[data-action="whatsapp"]')) return whatsappUpdate(id);
     const btn = ev.target.closest(".att button");
     if (!btn) return;
     const e = weekEntry(currentWeek, id, true);
@@ -723,7 +760,7 @@
     const form = ev.target;
     const name = form.name.value.trim();
     if (!name) return;
-    data.students.push({ id: uid(), name, contact: form.contact.value.trim(), batch: form.batch.value, archived: false });
+    data.students.push({ id: uid(), name, contact: form.contact.value.trim(), email: form.email.value.trim(), batch: form.batch.value, archived: false });
     save();
     form.reset();
     form.name.focus();
