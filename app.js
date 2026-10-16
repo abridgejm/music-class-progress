@@ -18,7 +18,9 @@
 
   // ---------- Storage ----------
   let storageOk = true;
-  const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, lastBackup: null });
+  const emptyData = () => ({ students: [], weeks: {}, fees: {}, songs: {}, settings: {}, lastBackup: null });
+  const DEFAULT_SETTINGS = { className: "Singing Class Progress", teacherName: "", greeting: "Hi!", signOff: "See you next week! 🎶" };
+  const setting = (k) => (data.settings?.[k] || "").trim() || DEFAULT_SETTINGS[k];
 
   function load() {
     try {
@@ -51,6 +53,7 @@
       weeks: d.weeks && typeof d.weeks === "object" ? d.weeks : {},
       fees: d.fees && typeof d.fees === "object" ? d.fees : {},
       songs: d.songs && typeof d.songs === "object" ? d.songs : {},
+      settings: d.settings && typeof d.settings === "object" ? d.settings : {},
       lastBackup: d.lastBackup || null,
     };
   }
@@ -263,7 +266,7 @@
     const monday = parseKey(currentWeek);
     const month = monthKeyOf(monday);
     const e = weekEntry(currentWeek, id);
-    const lines = [`Hi! Here's ${s.name}'s singing update for the week of ${fmtDay(monday)} 🎤`, ""];
+    const lines = [`${setting("greeting")} Here's ${s.name}'s singing update for the week of ${fmtDay(monday)} 🎤`, ""];
     if (e.attendance === "present") lines.push("✅ Attended class");
     if (e.attendance === "absent") lines.push("❌ Missed class this week");
     if (e.lessonLearnt?.trim()) lines.push(`📖 Learnt: ${e.lessonLearnt.trim()}`);
@@ -282,7 +285,8 @@
       if (status === "unpaid") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are still due.`);
       if (status === "partial") lines.push(`💳 Friendly reminder: ${fmtMonth(month)} fees are partly paid${Number(f.amount) ? ` (${f.amount} received)` : ""}.`);
     }
-    lines.push("", "See you next week! 🎶");
+    lines.push("", setting("signOff"));
+    if (setting("teacherName")) lines.push(`– ${setting("teacherName")}`);
     return lines.join("\n");
   }
 
@@ -348,7 +352,10 @@
     $("#songSummary").innerHTML = items.length ? SONG_STATUS.map((x) => `<span class="stat"><b>${counts[x.v]}</b>${x.label}</span>`).join("") : "";
     $("#songRows").innerHTML = items.length ? items.map((x) => `
       <tr data-song="${x.id}">
-        <td>${esc(x.title)}<span class="kind">${x.kind === "skill" ? "Skill" : "Song"}</span></td>
+        <td class="song-edit">
+          <input data-song-field="title" value="${esc(x.title)}" aria-label="Song or skill name">
+          <select data-song-field="kind" aria-label="Type"><option value="song" ${x.kind !== "skill" ? "selected" : ""}>Song</option><option value="skill" ${x.kind === "skill" ? "selected" : ""}>Skill</option></select>
+        </td>
         <td><div class="att" role="group" aria-label="Status for ${esc(x.title)}">
           ${SONG_STATUS.map((st) => `<button type="button" data-v="${st.v}" aria-pressed="${x.status === st.v}">${st.label}</button>`).join("")}
         </div></td>
@@ -515,7 +522,29 @@
   }
 
   // ---------- Render ----------
+  function renderSettings() {
+    const name = setting("className");
+    $("#className").textContent = `🎤 ${name}`;
+    document.title = name;
+  }
+
+  function settingsPreview() {
+    const form = $("#settingsForm");
+    const val = (k) => form[k].value.trim() || DEFAULT_SETTINGS[k];
+    const lines = [`${val("greeting")} Here's Maya's singing update for the week of ${fmtDay(parseKey(currentWeek))} 🎤`, "", "✅ Attended class", "📖 Learnt: Breathing, a new song verse", "", val("signOff")];
+    if (form.teacherName.value.trim()) lines.push(`– ${form.teacherName.value.trim()}`);
+    $("#messagePreview").textContent = lines.join("\n");
+  }
+
+  function openSettings() {
+    const form = $("#settingsForm");
+    Object.keys(DEFAULT_SETTINGS).forEach((k) => (form[k].value = data.settings?.[k] || ""));
+    settingsPreview();
+    $("#settingsDialog").showModal();
+  }
+
   function render() {
+    renderSettings();
     renderBanners();
     if (currentTab === "week") renderWeek();
     if (currentTab === "fees") renderFees();
@@ -628,6 +657,18 @@
     form.title.value = "";
     form.title.focus();
   });
+  $("#songRows").addEventListener("change", (ev) => {
+    const field = ev.target.dataset.songField;
+    const row = ev.target.closest("tr[data-song]");
+    if (!field || !row) return;
+    const item = (data.songs[songKid] || []).find((x) => x.id === row.dataset.song);
+    if (!item) return;
+    const value = ev.target.value.trim();
+    if (field === "title" && !value) { ev.target.value = item.title; return; }
+    item[field] = value;
+    save();
+    toast("Saved");
+  });
   $("#songRows").addEventListener("click", (ev) => {
     const row = ev.target.closest("tr[data-song]");
     if (!row) return;
@@ -654,6 +695,24 @@
     ev.target.value = "";
   });
   $("#closeHistory").addEventListener("click", () => $("#historyDialog").close());
+  $("#openSettings").addEventListener("click", openSettings);
+  $("#closeSettings").addEventListener("click", () => $("#settingsDialog").close());
+  $("#settingsDialog").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
+  $("#settingsForm").addEventListener("input", settingsPreview);
+  $("#settingsForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const form = ev.target;
+    data.settings = Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map((k) => [k, form[k].value.trim()]));
+    save();
+    render();
+    $("#settingsDialog").close();
+    toast("Settings saved");
+  });
+  $("#resetSettings").addEventListener("click", () => {
+    const form = $("#settingsForm");
+    Object.keys(DEFAULT_SETTINGS).forEach((k) => (form[k].value = ""));
+    settingsPreview();
+  });
   $("#historyDialog").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
 
   // ---------- Start ----------

@@ -204,3 +204,14 @@ label.check input { width: auto; }
 .tabs { overflow-x: auto; scrollbar-width: none; }
 .tab { white-space: nowrap; }
 @media (max-width: 600px) { .tabs { gap: 0; } .tab { padding: 10px 8px; font-size: .88rem; } }
+
+/* Inline song editing + settings */
+.song-edit { display: grid; grid-template-columns: 1fr auto; gap: 6px; min-width: 220px; }
+.song-edit select { width: auto; font-size: .85rem; }
+.settings-body { padding: 16px; display: grid; gap: 12px; }
+.preview-label { font-size: .85rem; font-weight: 600; color: var(--muted); }
+.message-preview { margin: 0; white-space: pre-wrap; font: inherit; font-size: .9rem; background: var(--brand-soft); border-radius: 12px; padding: 12px 14px; }
+.code-edit { border-top: 1px solid var(--border); padding-top: 12px; }
+.code-edit h3 { margin: 0 0 4px; font-size: 1rem; }
+.code-edit p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; }
+.code-edit .btn { text-decoration: none; }

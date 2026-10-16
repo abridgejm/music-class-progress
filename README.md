@@ -27,3 +27,9 @@ That means:
 - `app.js`: everything else
 
 The site is published with GitHub Pages, and every push to `main` updates it.
+
+## Editing
+
+- **Class info**: everything on the page is editable in place (names, past weeks, fees, song titles).
+- **Settings (⚙️)**: class name, your name, and the parent-message greeting and sign-off.
+- **The app itself**: open https://github.dev/abridgejm/music-class-progress (or press `.` on the GitHub repo page), edit a file, then commit from the Source Control panel. The site updates in about a minute.
